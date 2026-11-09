@@ -1,0 +1,23 @@
+# ==============================================================================
+# CloudOps Sentinel - Prometheus Alertmanager Configuration
+# Routes active threshold alerts to CloudOps Sentinel Incident Management Webhook
+# ==============================================================================
+
+global:
+  resolve_timeout: 1m
+
+route:
+  group_by: ['alertname', 'instance', 'service']
+  group_wait: 5s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'cloudops-sentinel-webhook'
+
+receivers:
+  - name: 'cloudops-sentinel-webhook'
+    webhook_configs:
+      - url: 'http://backend:8000/api/v1/incidents/webhook/alertmanager'
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+
