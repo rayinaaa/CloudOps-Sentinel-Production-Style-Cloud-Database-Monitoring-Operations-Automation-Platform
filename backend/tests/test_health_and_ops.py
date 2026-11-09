@@ -1,12 +1,14 @@
 """Test suite for CloudOps Sentinel Health and Operational Telemetry Endpoints."""
 
+from unittest.mock import AsyncMock
+
 import pytest
-from httpx import AsyncClient
-from unittest.mock import AsyncMock, patch
 from fastapi import status
+from httpx import AsyncClient
 from sqlalchemy.exc import OperationalError
-from app.main import app
+
 from app.core.database import get_db
+from app.main import app
 
 
 @pytest.mark.asyncio
@@ -51,9 +53,12 @@ async def test_database_health_probe_success(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_database_health_probe_failure_handling(client: AsyncClient):
     """Test GET /health/db failure mode: must return HTTP 503 and never expose credentials."""
+
     async def mock_failing_db():
         mock_session = AsyncMock()
-        mock_session.execute.side_effect = OperationalError("connection failure", None, None)
+        mock_session.execute.side_effect = OperationalError(
+            "connection failure", None, None
+        )
         yield mock_session
 
     app.dependency_overrides[get_db] = mock_failing_db
@@ -113,9 +118,12 @@ async def test_ops_database_summary_success(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_ops_database_summary_failure_handling(client: AsyncClient):
     """Test GET /ops/db-summary failure mode: must return HTTP 503 and mask internal errors."""
+
     async def mock_failing_db():
         mock_session = AsyncMock()
-        mock_session.execute.side_effect = OperationalError("catalog corrupt or locked", None, None)
+        mock_session.execute.side_effect = OperationalError(
+            "catalog corrupt or locked", None, None
+        )
         yield mock_session
 
     app.dependency_overrides[get_db] = mock_failing_db
@@ -128,4 +136,3 @@ async def test_ops_database_summary_failure_handling(client: AsyncClient):
         assert "traceback" not in str(data).lower()
     finally:
         app.dependency_overrides.clear()
-

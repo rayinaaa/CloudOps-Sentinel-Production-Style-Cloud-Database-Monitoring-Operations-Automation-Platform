@@ -1,20 +1,35 @@
 """Pydantic schemas for operational database metrics and summary."""
 
 from typing import List, Optional
+
 from pydantic import BaseModel, Field
 
 
 class ConnectionMetrics(BaseModel):
     """PostgreSQL connection pool and activity metrics."""
 
-    active_connections: int = Field(..., description="Connections actively executing a query")
-    idle_connections: int = Field(..., description="Connections idle and awaiting commands")
-    idle_in_transaction: int = Field(..., description="Connections idling inside open transactions")
+    active_connections: int = Field(
+        ..., description="Connections actively executing a query"
+    )
+    idle_connections: int = Field(
+        ..., description="Connections idle and awaiting commands"
+    )
+    idle_in_transaction: int = Field(
+        ..., description="Connections idling inside open transactions"
+    )
     total_connections: int = Field(..., description="Total connections currently open")
-    max_connections: int = Field(..., description="Configured maximum connections limit")
-    usable_connections_limit: int = Field(..., description="Max connections minus reserved superuser slots")
-    pool_saturation_pct: float = Field(..., description="Percentage of connection pool utilized")
-    connection_status: str = Field(..., description="Status evaluation: HEALTHY, WARNING, CRITICAL")
+    max_connections: int = Field(
+        ..., description="Configured maximum connections limit"
+    )
+    usable_connections_limit: int = Field(
+        ..., description="Max connections minus reserved superuser slots"
+    )
+    pool_saturation_pct: float = Field(
+        ..., description="Percentage of connection pool utilized"
+    )
+    connection_status: str = Field(
+        ..., description="Status evaluation: HEALTHY, WARNING, CRITICAL"
+    )
 
 
 class TableStorageMetric(BaseModel):
@@ -121,4 +136,3 @@ class BackupItem(BaseModel):
     started_at: str
     completed_at: Optional[str] = None
     duration_seconds: Optional[float] = None
-

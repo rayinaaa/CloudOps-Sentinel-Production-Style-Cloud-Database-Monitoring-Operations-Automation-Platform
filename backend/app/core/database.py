@@ -5,6 +5,7 @@ and fast connectivity health checks for CloudOps Sentinel.
 """
 
 from typing import AsyncGenerator
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -12,12 +13,14 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
+
 from app.core.config import settings
 from app.core.logging import logger
 
 
 class Base(DeclarativeBase):
     """Base declarative class for all SQLAlchemy entities."""
+
     pass
 
 
@@ -65,4 +68,3 @@ async def check_database_connection() -> bool:
     except Exception as exc:
         logger.warning("Database connectivity check failed", error=str(exc))
         return False
-

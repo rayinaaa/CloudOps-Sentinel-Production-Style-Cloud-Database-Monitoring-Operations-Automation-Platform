@@ -5,7 +5,8 @@ variables with sensible local development defaults.
 """
 
 from typing import List, Optional
-from pydantic import Field, PostgresDsn, computed_field, model_validator
+
+from pydantic import Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -51,8 +52,12 @@ class Settings(BaseSettings):
     # Connection Pool Settings
     DB_POOL_SIZE: int = Field(default=10, description="Active connection pool limit")
     DB_MAX_OVERFLOW: int = Field(default=20, description="Max overflow connections")
-    DB_POOL_TIMEOUT: int = Field(default=30, description="Connection acquisition timeout")
-    DB_POOL_RECYCLE: int = Field(default=1800, description="Stale socket recycle period in sec")
+    DB_POOL_TIMEOUT: int = Field(
+        default=30, description="Connection acquisition timeout"
+    )
+    DB_POOL_RECYCLE: int = Field(
+        default=1800, description="Stale socket recycle period in sec"
+    )
 
     # 3. Monitored Target Database Defaults
     TARGET_POSTGRES_SERVER: str = "localhost"
@@ -94,9 +99,13 @@ class Settings(BaseSettings):
         """Guards against using unrotated development passwords in production."""
         if self.ENVIRONMENT.lower() == "production":
             if self.POSTGRES_PASSWORD == "sentinel_secret_dev_pass":
-                raise ValueError("CRITICAL SECURITY VIOLATION: Default POSTGRES_PASSWORD cannot be used in production environment.")
+                raise ValueError(
+                    "CRITICAL SECURITY VIOLATION: Default POSTGRES_PASSWORD cannot be used in production environment."
+                )
             if "change-in-production" in self.SECRET_KEY.lower():
-                raise ValueError("CRITICAL SECURITY VIOLATION: Default SECRET_KEY cannot be used in production environment.")
+                raise ValueError(
+                    "CRITICAL SECURITY VIOLATION: Default SECRET_KEY cannot be used in production environment."
+                )
         return self
 
     @computed_field  # type: ignore[misc]
@@ -123,4 +132,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

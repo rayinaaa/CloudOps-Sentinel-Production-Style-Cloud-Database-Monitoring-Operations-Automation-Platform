@@ -2,9 +2,11 @@
 
 import uuid
 from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import get_db
 from app.models.database_instance import DatabaseInstance
 from app.schemas.database_instance import (
@@ -18,7 +20,9 @@ router = APIRouter(prefix="/databases", tags=["Database Targets"])
 
 @router.get("", response_model=List[DatabaseInstanceRead])
 async def list_databases(
-    environment: Optional[str] = Query(None, description="Filter by environment (production, staging, etc.)"),
+    environment: Optional[str] = Query(
+        None, description="Filter by environment (production, staging, etc.)"
+    ),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     db: AsyncSession = Depends(get_db),
 ) -> List[DatabaseInstance]:
@@ -33,7 +37,9 @@ async def list_databases(
     return list(result.scalars().all())
 
 
-@router.post("", response_model=DatabaseInstanceRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=DatabaseInstanceRead, status_code=status.HTTP_201_CREATED
+)
 async def register_database(
     payload: DatabaseInstanceCreate,
     db: AsyncSession = Depends(get_db),
@@ -97,4 +103,3 @@ async def update_database(
     await db.flush()
     await db.refresh(instance)
     return instance
-

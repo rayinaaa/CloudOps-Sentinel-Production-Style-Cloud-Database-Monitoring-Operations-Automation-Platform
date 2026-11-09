@@ -6,11 +6,13 @@ import sys
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.logging import logger
@@ -200,7 +202,9 @@ async def get_database_operational_summary(db: AsyncSession = Depends(get_db)):
         )
 
 
-@router.get("/tenants", response_model=List[TenantDetail], status_code=status.HTTP_200_OK)
+@router.get(
+    "/tenants", response_model=List[TenantDetail], status_code=status.HTTP_200_OK
+)
 async def list_tenants_with_usage(db: AsyncSession = Depends(get_db)):
     """Retrieves all registered multi-tenant customer accounts with active user allocations."""
     try:
@@ -238,7 +242,9 @@ async def list_tenants_with_usage(db: AsyncSession = Depends(get_db)):
             )
         return tenants
     except Exception as exc:
-        logger.error("Failed to query tenant usage fleet", error_type=type(exc).__name__)
+        logger.error(
+            "Failed to query tenant usage fleet", error_type=type(exc).__name__
+        )
         return []
 
 
@@ -283,13 +289,55 @@ async def get_infrastructure_telemetry():
         return f"{mb} MB"
 
     services = [
-        InfraServiceStatus(name="sentinel-postgres", component="Primary DB", status="HEALTHY", port=5434, latency_ms=1.2),
-        InfraServiceStatus(name="monitored-postgres", component="Target DB (RDS)", status="HEALTHY", port=5433, latency_ms=1.5),
-        InfraServiceStatus(name="sentinel-backend", component="FastAPI Engine", status="HEALTHY", port=8000, latency_ms=0.8),
-        InfraServiceStatus(name="sentinel-prometheus", component="Metrics Collector", status="HEALTHY", port=9090, latency_ms=2.1),
-        InfraServiceStatus(name="sentinel-alertmanager", component="Alert Routing", status="HEALTHY", port=9093, latency_ms=1.8),
-        InfraServiceStatus(name="sentinel-grafana", component="Dashboards", status="HEALTHY", port=3001, latency_ms=3.4),
-        InfraServiceStatus(name="sentinel-postgres-exporter", component="Catalog Exporter", status="HEALTHY", port=9187, latency_ms=1.1),
+        InfraServiceStatus(
+            name="sentinel-postgres",
+            component="Primary DB",
+            status="HEALTHY",
+            port=5434,
+            latency_ms=1.2,
+        ),
+        InfraServiceStatus(
+            name="monitored-postgres",
+            component="Target DB (RDS)",
+            status="HEALTHY",
+            port=5433,
+            latency_ms=1.5,
+        ),
+        InfraServiceStatus(
+            name="sentinel-backend",
+            component="FastAPI Engine",
+            status="HEALTHY",
+            port=8000,
+            latency_ms=0.8,
+        ),
+        InfraServiceStatus(
+            name="sentinel-prometheus",
+            component="Metrics Collector",
+            status="HEALTHY",
+            port=9090,
+            latency_ms=2.1,
+        ),
+        InfraServiceStatus(
+            name="sentinel-alertmanager",
+            component="Alert Routing",
+            status="HEALTHY",
+            port=9093,
+            latency_ms=1.8,
+        ),
+        InfraServiceStatus(
+            name="sentinel-grafana",
+            component="Dashboards",
+            status="HEALTHY",
+            port=3001,
+            latency_ms=3.4,
+        ),
+        InfraServiceStatus(
+            name="sentinel-postgres-exporter",
+            component="Catalog Exporter",
+            status="HEALTHY",
+            port=9187,
+            latency_ms=1.1,
+        ),
     ]
 
     return InfraMetrics(
@@ -345,7 +393,9 @@ async def list_database_backups():
     return _BACKUP_CATALOG
 
 
-@router.post("/backups/trigger", response_model=BackupItem, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/backups/trigger", response_model=BackupItem, status_code=status.HTTP_201_CREATED
+)
 async def trigger_live_backup(database_name: str = Query("sentinel_db")):
     """Initiates an automated pg_dump compressed backup to AWS S3."""
     # Enforce strict identifier pattern to prevent path traversal or injection
@@ -373,22 +423,84 @@ async def trigger_live_backup(database_name: str = Query("sentinel_db")):
         duration_seconds=6.8,
     )
     _BACKUP_CATALOG.insert(0, item)
-    logger.info("Backup successfully executed and uploaded to S3", s3_url=item.s3_url, database=database_name)
+    logger.info(
+        "Backup successfully executed and uploaded to S3",
+        s3_url=item.s3_url,
+        database=database_name,
+    )
     return item
 
 
-@router.get("/logs", response_model=List[OperationalLogItem], status_code=status.HTTP_200_OK)
+@router.get(
+    "/logs", response_model=List[OperationalLogItem], status_code=status.HTTP_200_OK
+)
 async def list_operational_logs(limit: int = Query(50, ge=1, le=100)):
     """Returns recent structured operational logs for real-time audit streaming."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     sample_logs = [
-        OperationalLogItem(id="log-01", timestamp=now, level="INFO", component="SENTINEL_API", message="HTTP GET /ops/db-summary returned status 200 in 18ms", details="client_ip=127.0.0.1"),
-        OperationalLogItem(id="log-02", timestamp=now, level="INFO", component="PROMETHEUS_SCRAPER", message="Scrape pool 'postgres-exporter' healthy. Collected 184 timeseries", details="latency=0.036s"),
-        OperationalLogItem(id="log-03", timestamp=now, level="INFO", component="ALERTMANAGER", message="Webhook dispatch delivered successfully to /api/v1/incidents/webhook/alertmanager", details="receiver=cloudops-sentinel-webhook"),
-        OperationalLogItem(id="log-04", timestamp=now, level="WARN", component="STORAGE_MONITOR", message="Target relation 'app_users' grew by 8kB in last 24h", details="schema=public table=app_users"),
-        OperationalLogItem(id="log-05", timestamp=now, level="INFO", component="BACKUP_SERVICE", message="S3 disaster recovery archive verified with pg_restore list verification", details="checksum=SHA256"),
-        OperationalLogItem(id="log-06", timestamp=now, level="INFO", component="INCIDENT_ENGINE", message="SLA compliance evaluation completed. Compliance rate: 100.0%", details="active_escalations=0"),
-        OperationalLogItem(id="log-07", timestamp=now, level="INFO", component="CONNECTION_POOL", message="Connection pool saturation healthy at 2.0% (2/100 active connections)", details="status=HEALTHY"),
-        OperationalLogItem(id="log-08", timestamp=now, level="INFO", component="GRAFANA_PROVISIONING", message="Dashboard 'cloudops-sentinel-overview' refreshed with 14 panels", details="uid=cloudops-sentinel-overview"),
+        OperationalLogItem(
+            id="log-01",
+            timestamp=now,
+            level="INFO",
+            component="SENTINEL_API",
+            message="HTTP GET /ops/db-summary returned status 200 in 18ms",
+            details="client_ip=127.0.0.1",
+        ),
+        OperationalLogItem(
+            id="log-02",
+            timestamp=now,
+            level="INFO",
+            component="PROMETHEUS_SCRAPER",
+            message="Scrape pool 'postgres-exporter' healthy. Collected 184 timeseries",
+            details="latency=0.036s",
+        ),
+        OperationalLogItem(
+            id="log-03",
+            timestamp=now,
+            level="INFO",
+            component="ALERTMANAGER",
+            message="Webhook dispatch delivered successfully to /api/v1/incidents/webhook/alertmanager",
+            details="receiver=cloudops-sentinel-webhook",
+        ),
+        OperationalLogItem(
+            id="log-04",
+            timestamp=now,
+            level="WARN",
+            component="STORAGE_MONITOR",
+            message="Target relation 'app_users' grew by 8kB in last 24h",
+            details="schema=public table=app_users",
+        ),
+        OperationalLogItem(
+            id="log-05",
+            timestamp=now,
+            level="INFO",
+            component="BACKUP_SERVICE",
+            message="S3 disaster recovery archive verified with pg_restore list verification",
+            details="checksum=SHA256",
+        ),
+        OperationalLogItem(
+            id="log-06",
+            timestamp=now,
+            level="INFO",
+            component="INCIDENT_ENGINE",
+            message="SLA compliance evaluation completed. Compliance rate: 100.0%",
+            details="active_escalations=0",
+        ),
+        OperationalLogItem(
+            id="log-07",
+            timestamp=now,
+            level="INFO",
+            component="CONNECTION_POOL",
+            message="Connection pool saturation healthy at 2.0% (2/100 active connections)",
+            details="status=HEALTHY",
+        ),
+        OperationalLogItem(
+            id="log-08",
+            timestamp=now,
+            level="INFO",
+            component="GRAFANA_PROVISIONING",
+            message="Dashboard 'cloudops-sentinel-overview' refreshed with 14 panels",
+            details="uid=cloudops-sentinel-overview",
+        ),
     ]
     return sample_logs[:limit]

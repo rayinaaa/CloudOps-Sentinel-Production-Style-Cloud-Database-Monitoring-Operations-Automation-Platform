@@ -10,8 +10,9 @@ Validates:
 
 import base64
 import os
-import pytest
+
 import httpx
+import pytest
 from httpx import AsyncClient
 
 
@@ -29,7 +30,10 @@ async def test_fastapi_metrics_endpoint_format(client: AsyncClient):
     content = metrics_resp.text
     # Verify core Prometheus metrics are exposed
     assert "http_requests_total" in content
-    assert "http_request_duration_seconds" in content or "http_request_duration_highr_seconds" in content
+    assert (
+        "http_request_duration_seconds" in content
+        or "http_request_duration_highr_seconds" in content
+    )
     assert "python_info" in content or "python_gc_objects_collected_total" in content
 
 
@@ -60,7 +64,9 @@ async def test_postgres_exporter_live_metrics():
             assert "pg_database_size_bytes" in content
             assert "pg_stat_database_xact_commit" in content
         except httpx.ConnectError:
-            pytest.skip(f"postgres-exporter not reachable at {exporter_url} in current test environment")
+            pytest.skip(
+                f"postgres-exporter not reachable at {exporter_url} in current test environment"
+            )
 
 
 @pytest.mark.asyncio
@@ -75,7 +81,9 @@ async def test_prometheus_targets_up():
             assert data.get("status") == "success"
 
             targets = data.get("data", {}).get("activeTargets", [])
-            assert len(targets) >= 3, f"Expected at least 3 scrape targets, found {len(targets)}"
+            assert len(targets) >= 3, (
+                f"Expected at least 3 scrape targets, found {len(targets)}"
+            )
 
             jobs = {t["labels"]["job"]: t["health"] for t in targets}
             assert "postgres-exporter" in jobs
@@ -85,13 +93,17 @@ async def test_prometheus_targets_up():
             assert "sentinel-backend" in jobs
             assert jobs["sentinel-backend"] == "up"
         except httpx.ConnectError:
-            pytest.skip(f"Prometheus not reachable at {prom_url} in current test environment")
+            pytest.skip(
+                f"Prometheus not reachable at {prom_url} in current test environment"
+            )
 
 
 @pytest.mark.asyncio
 async def test_prometheus_alert_rules_loaded():
     """Verifies that Prometheus has loaded all CloudOps Sentinel alert rules."""
-    prom_rules_url = os.getenv("PROMETHEUS_RULES_URL", "http://localhost:9090/api/v1/rules")
+    prom_rules_url = os.getenv(
+        "PROMETHEUS_RULES_URL", "http://localhost:9090/api/v1/rules"
+    )
     async with httpx.AsyncClient(timeout=10.0) as ac:
         try:
             resp = await ac.get(prom_rules_url)
@@ -121,7 +133,9 @@ async def test_prometheus_alert_rules_loaded():
             for rule in expected_rules:
                 assert rule in all_rules, f"Missing expected alert rule: {rule}"
         except httpx.ConnectError:
-            pytest.skip(f"Prometheus not reachable at {prom_rules_url} in current test environment")
+            pytest.skip(
+                f"Prometheus not reachable at {prom_rules_url} in current test environment"
+            )
 
 
 @pytest.mark.asyncio
@@ -130,36 +144,51 @@ async def test_grafana_datasource_provisioning():
     grafana_ds_url = os.getenv("GRAFANA_URL", "http://localhost:3001/api/datasources")
     auth_header = "Basic " + base64.b64encode(b"admin:admin").decode("utf-8")
 
-    async with httpx.AsyncClient(timeout=10.0, headers={"Authorization": auth_header}) as ac:
+    async with httpx.AsyncClient(
+        timeout=10.0, headers={"Authorization": auth_header}
+    ) as ac:
         try:
             resp = await ac.get(grafana_ds_url)
             assert resp.status_code == 200
             datasources = resp.json()
-            prom_ds = next((ds for ds in datasources if ds.get("type") == "prometheus"), None)
+            prom_ds = next(
+                (ds for ds in datasources if ds.get("type") == "prometheus"), None
+            )
             assert prom_ds is not None, "Prometheus datasource not found in Grafana"
             assert prom_ds.get("isDefault") is True
             assert prom_ds.get("url") == "http://prometheus:9090"
         except httpx.ConnectError:
-            pytest.skip(f"Grafana not reachable at {grafana_ds_url} in current test environment")
+            pytest.skip(
+                f"Grafana not reachable at {grafana_ds_url} in current test environment"
+            )
 
 
 @pytest.mark.asyncio
 async def test_grafana_dashboard_provisioning():
     """Verifies that the CloudOps Sentinel dashboard is provisioned with 14 panels."""
-    grafana_dash_url = "http://localhost:3001/api/dashboards/uid/cloudops-sentinel-overview"
+    grafana_dash_url = (
+        "http://localhost:3001/api/dashboards/uid/cloudops-sentinel-overview"
+    )
     auth_header = "Basic " + base64.b64encode(b"admin:admin").decode("utf-8")
 
-    async with httpx.AsyncClient(timeout=10.0, headers={"Authorization": auth_header}) as ac:
+    async with httpx.AsyncClient(
+        timeout=10.0, headers={"Authorization": auth_header}
+    ) as ac:
         try:
             resp = await ac.get(grafana_dash_url)
             assert resp.status_code == 200
             dashboard_data = resp.json().get("dashboard", {})
-            assert dashboard_data.get("title") == "CloudOps Sentinel - Database & Operations Platform"
+            assert (
+                dashboard_data.get("title")
+                == "CloudOps Sentinel - Database & Operations Platform"
+            )
 
             panels = dashboard_data.get("panels", [])
             # Filter non-row visualization panels
             visual_panels = [p for p in panels if p.get("type") != "row"]
-            assert len(visual_panels) == 14, f"Expected 14 visualization panels, found {len(visual_panels)}"
+            assert len(visual_panels) == 14, (
+                f"Expected 14 visualization panels, found {len(visual_panels)}"
+            )
 
             panel_titles = [p.get("title") for p in visual_panels]
             assert "Database Availability" in panel_titles
@@ -177,4 +206,6 @@ async def test_grafana_dashboard_provisioning():
             assert "Process CPU Usage %" in panel_titles
             assert "Process Resident Memory Footprint (RSS)" in panel_titles
         except httpx.ConnectError:
-            pytest.skip(f"Grafana not reachable at {grafana_dash_url} in current test environment")
+            pytest.skip(
+                f"Grafana not reachable at {grafana_dash_url} in current test environment"
+            )

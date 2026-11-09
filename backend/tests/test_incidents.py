@@ -1,6 +1,7 @@
 """Integration tests for CloudOps Sentinel Incident Management, Alertmanager Webhook, and SLA Engine."""
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 
@@ -83,7 +84,9 @@ async def test_acknowledge_and_resolve_lifecycle(client: AsyncClient):
         "acknowledged_by": "oncall_sre",
         "notes": "Acknowledged page; auditing slow queries in pg_stat_statements.",
     }
-    ack_resp = await client.post(f"/api/v1/incidents/{inc_id}/acknowledge", json=ack_payload)
+    ack_resp = await client.post(
+        f"/api/v1/incidents/{inc_id}/acknowledge", json=ack_payload
+    )
     assert ack_resp.status_code == 200
     ack_data = ack_resp.json()
     assert ack_data["status"] == "ACKNOWLEDGED"
@@ -95,7 +98,9 @@ async def test_acknowledge_and_resolve_lifecycle(client: AsyncClient):
         "resolved_by": "oncall_sre",
         "resolution_notes": "Created missing composite index on orders(tenant_id, created_at). Cache hit ratio restored to 99.1%.",
     }
-    res_resp = await client.post(f"/api/v1/incidents/{inc_id}/resolve", json=resolve_payload)
+    res_resp = await client.post(
+        f"/api/v1/incidents/{inc_id}/resolve", json=resolve_payload
+    )
     assert res_resp.status_code == 200
     res_data = res_resp.json()
     assert res_data["status"] == "RESOLVED"
@@ -134,7 +139,10 @@ async def test_state_machine_guards(client: AsyncClient):
     # Resolve properly
     await client.post(
         f"/api/v1/incidents/{inc_id}/resolve",
-        json={"resolved_by": "engineer", "resolution_notes": "Proper resolution notes."},
+        json={
+            "resolved_by": "engineer",
+            "resolution_notes": "Proper resolution notes.",
+        },
     )
 
     # Attempting to acknowledge an already RESOLVED incident must return 400
@@ -180,7 +188,9 @@ async def test_alertmanager_webhook_deduplication_and_autoresolve(client: AsyncC
             }
         ],
     }
-    resp1 = await client.post("/api/v1/incidents/webhook/alertmanager", json=payload_firing_1)
+    resp1 = await client.post(
+        "/api/v1/incidents/webhook/alertmanager", json=payload_firing_1
+    )
     assert resp1.status_code == 200
     res1_data = resp1.json()
     assert res1_data["details"]["firing_created"] == 1
@@ -192,7 +202,9 @@ async def test_alertmanager_webhook_deduplication_and_autoresolve(client: AsyncC
     assert inc_resp.json()["severity"] == "HIGH"  # 'warning' maps to HIGH
 
     # 2. Duplicate firing dispatch -> updates existing incident without duplicate ticket
-    resp2 = await client.post("/api/v1/incidents/webhook/alertmanager", json=payload_firing_1)
+    resp2 = await client.post(
+        "/api/v1/incidents/webhook/alertmanager", json=payload_firing_1
+    )
     assert resp2.status_code == 200
     res2_data = resp2.json()
     assert res2_data["details"]["firing_updated"] == 1
@@ -215,7 +227,9 @@ async def test_alertmanager_webhook_deduplication_and_autoresolve(client: AsyncC
             }
         ],
     }
-    resp3 = await client.post("/api/v1/incidents/webhook/alertmanager", json=payload_resolved)
+    resp3 = await client.post(
+        "/api/v1/incidents/webhook/alertmanager", json=payload_resolved
+    )
     assert resp3.status_code == 200
     assert resp3.json()["details"]["auto_resolved"] == 1
 
@@ -241,7 +255,9 @@ async def test_manual_and_automated_escalation(client: AsyncClient):
         "new_level": 2,
         "reason": "Outage uncontained after initial mitigation attempt; paging engineering lead.",
     }
-    esc_resp = await client.post(f"/api/v1/incidents/{inc_id}/escalate", json=esc_payload)
+    esc_resp = await client.post(
+        f"/api/v1/incidents/{inc_id}/escalate", json=esc_payload
+    )
     assert esc_resp.status_code == 200
     assert esc_resp.json()["escalation_level"] == 2
     assert esc_resp.json()["escalated_at"] is not None
@@ -274,4 +290,3 @@ async def test_incident_metrics_and_summary_report(client: AsyncClient):
     assert report["report_title"] == "CloudOps Sentinel Incident & Reliability Report"
     assert "metrics" in report
     assert "recent_resolved_incidents" in report
-

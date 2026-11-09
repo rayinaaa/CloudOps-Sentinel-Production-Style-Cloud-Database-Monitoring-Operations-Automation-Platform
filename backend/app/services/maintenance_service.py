@@ -9,11 +9,13 @@ Executes database operations automation:
 import gzip
 import hashlib
 import os
+import tempfile
 import time
 from datetime import datetime, timezone
-from typing import Optional
+
 import asyncpg
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import settings
 from app.core.logging import logger
 from app.core.telemetry import MAINTENANCE_JOBS_TOTAL
@@ -49,7 +51,9 @@ class MaintenanceService:
         await db.flush()
         await db.refresh(task)
 
-        temp_file = f"/tmp/{instance.name}_{timestamp_str}.dump.gz"
+        temp_file = os.path.join(
+            tempfile.gettempdir(), f"{instance.name}_{timestamp_str}.dump.gz"
+        )
         try:
             # Generate backup payload (synthetic compressed snapshot or pg_dump if in container)
             header_metadata = (
@@ -60,7 +64,9 @@ class MaintenanceService:
             ).encode("utf-8")
 
             os.makedirs(os.path.dirname(temp_file) or ".", exist_ok=True)
-            with gzip.open(temp_file, "wb", compresslevel=settings.BACKUP_COMPRESSION_LEVEL) as gz:
+            with gzip.open(
+                temp_file, "wb", compresslevel=settings.BACKUP_COMPRESSION_LEVEL
+            ) as gz:
                 gz.write(header_metadata)
                 gz.write(b"\x00" * 1024 * 64)  # 64KB synthetic baseline payload
 
@@ -73,7 +79,10 @@ class MaintenanceService:
             file_size_bytes = os.path.getsize(temp_file)
 
             # AWS S3 Upload (using Boto3 if configured; gracefully simulation if offline)
-            if settings.AWS_ACCESS_KEY_ID and "CHANGE" not in settings.AWS_ACCESS_KEY_ID:
+            if (
+                settings.AWS_ACCESS_KEY_ID
+                and "CHANGE" not in settings.AWS_ACCESS_KEY_ID
+            ):
                 import boto3
 
                 s3_client = boto3.client(
@@ -114,9 +123,13 @@ class MaintenanceService:
             duration_s = round(time.perf_counter() - start_time, 2)
             task.status = "FAILED"
             task.completed_at = datetime.now(timezone.utc)
-            task.execution_logs += f"\n[ERROR] Backup failed after {duration_s}s: {str(exc)}"
+            task.execution_logs += (
+                f"\n[ERROR] Backup failed after {duration_s}s: {str(exc)}"
+            )
             MAINTENANCE_JOBS_TOTAL.labels(task_type="S3_BACKUP", status="FAILED").inc()
-            logger.error("Automated S3 backup failed", instance=instance.name, error=str(exc))
+            logger.error(
+                "Automated S3 backup failed", instance=instance.name, error=str(exc)
+            )
 
         finally:
             if os.path.exists(temp_file):
@@ -166,16 +179,24 @@ class MaintenanceService:
 
             task.status = "SUCCESS"
             task.completed_at = datetime.now(timezone.utc)
-            task.execution_logs += f"\n[SUCCESS] VACUUM ANALYZE executed successfully in {duration_s}s."
-            MAINTENANCE_JOBS_TOTAL.labels(task_type="VACUUM_ANALYZE", status="SUCCESS").inc()
+            task.execution_logs += (
+                f"\n[SUCCESS] VACUUM ANALYZE executed successfully in {duration_s}s."
+            )
+            MAINTENANCE_JOBS_TOTAL.labels(
+                task_type="VACUUM_ANALYZE", status="SUCCESS"
+            ).inc()
 
         except Exception as exc:
             duration_s = round(time.perf_counter() - start_time, 2)
             task.status = "FAILED"
             task.completed_at = datetime.now(timezone.utc)
             task.execution_logs += f"\n[ERROR] VACUUM ANALYZE failed: {str(exc)}"
-            MAINTENANCE_JOBS_TOTAL.labels(task_type="VACUUM_ANALYZE", status="FAILED").inc()
-            logger.warning("VACUUM ANALYZE failed", instance=instance.name, error=str(exc))
+            MAINTENANCE_JOBS_TOTAL.labels(
+                task_type="VACUUM_ANALYZE", status="FAILED"
+            ).inc()
+            logger.warning(
+                "VACUUM ANALYZE failed", instance=instance.name, error=str(exc)
+            )
 
         finally:
             if conn:
@@ -226,23 +247,27 @@ class MaintenanceService:
               AND state = 'idle in transaction'
               AND state_change < now() - ($1 || ' seconds')::interval;
             """
-            terminated_rows = await conn.fetch(terminate_sql, str(idle_threshold_seconds))
+            terminated_rows = await conn.fetch(
+                terminate_sql, str(idle_threshold_seconds)
+            )
             terminated_count = len(terminated_rows)
 
             duration_s = round(time.perf_counter() - start_time, 2)
             task.status = "SUCCESS"
             task.completed_at = datetime.now(timezone.utc)
-            task.execution_logs += (
-                f"\n[SUCCESS] Terminated {terminated_count} lingering idle connections in {duration_s}s."
-            )
-            MAINTENANCE_JOBS_TOTAL.labels(task_type="CONNECTION_DRAIN", status="SUCCESS").inc()
+            task.execution_logs += f"\n[SUCCESS] Terminated {terminated_count} lingering idle connections in {duration_s}s."
+            MAINTENANCE_JOBS_TOTAL.labels(
+                task_type="CONNECTION_DRAIN", status="SUCCESS"
+            ).inc()
 
         except Exception as exc:
             duration_s = round(time.perf_counter() - start_time, 2)
             task.status = "FAILED"
             task.completed_at = datetime.now(timezone.utc)
             task.execution_logs += f"\n[ERROR] Connection drain failed: {str(exc)}"
-            MAINTENANCE_JOBS_TOTAL.labels(task_type="CONNECTION_DRAIN", status="FAILED").inc()
+            MAINTENANCE_JOBS_TOTAL.labels(
+                task_type="CONNECTION_DRAIN", status="FAILED"
+            ).inc()
 
         finally:
             if conn:
@@ -254,4 +279,3 @@ class MaintenanceService:
         await db.flush()
         await db.refresh(task)
         return task
-

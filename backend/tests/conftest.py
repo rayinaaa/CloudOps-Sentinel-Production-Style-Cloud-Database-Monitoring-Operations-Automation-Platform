@@ -1,9 +1,10 @@
 """Pytest configuration and test fixtures."""
 
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from app.main import app
+from httpx import ASGITransport, AsyncClient
+
 from app.core.database import engine
+from app.main import app
 
 
 @pytest_asyncio.fixture

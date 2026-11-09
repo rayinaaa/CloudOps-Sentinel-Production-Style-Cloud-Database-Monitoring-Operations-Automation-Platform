@@ -1,14 +1,15 @@
 """Incident and Incident History models for CloudOps Sentinel incident lifecycle."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
+
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import TimestampedBase, utc_now
+from app.models.base import TimestampedBase
 
 
 class IncidentSeverity(str, Enum):
@@ -156,4 +157,3 @@ class IncidentHistory(TimestampedBase):
 
     # Relationship back to parent incident
     incident: Mapped["Incident"] = relationship("Incident", back_populates="history")
-

@@ -1,16 +1,18 @@
 """Endpoints for executing operational automation tasks."""
 
 import uuid
-from typing import List, Optional
 from datetime import datetime, timezone
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.database_instance import DatabaseInstance
 from app.models.maintenance_task import MaintenanceTask
-from app.schemas.maintenance import MaintenanceTaskTrigger, MaintenanceTaskRead
+from app.schemas.maintenance import MaintenanceTaskRead, MaintenanceTaskTrigger
 
 router = APIRouter(prefix="/operations", tags=["Automated Operations"])
 
@@ -31,7 +33,11 @@ async def list_maintenance_tasks(
     return list(result.scalars().all())
 
 
-@router.post("/databases/{instance_id}/trigger", response_model=MaintenanceTaskRead, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/databases/{instance_id}/trigger",
+    response_model=MaintenanceTaskRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def trigger_maintenance_operation(
     instance_id: uuid.UUID,
     payload: MaintenanceTaskTrigger,
@@ -73,9 +79,10 @@ async def trigger_maintenance_operation(
     elif payload.task_type.upper() in ["VACUUM_ANALYZE", "HEALTH_AUDIT"]:
         task.status = "SUCCESS"
         task.completed_at = datetime.now(timezone.utc)
-        task.execution_logs += f"\nRoutine maintenance completed cleanly on target {instance.name}."
+        task.execution_logs += (
+            f"\nRoutine maintenance completed cleanly on target {instance.name}."
+        )
 
     await db.flush()
     await db.refresh(task)
     return task
-

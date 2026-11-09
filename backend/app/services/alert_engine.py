@@ -7,9 +7,11 @@ to operational channels (Slack, Microsoft Teams, PagerDuty).
 
 from datetime import datetime, timezone
 from typing import List, Optional
+
 import httpx
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import settings
 from app.core.logging import logger
 from app.models.alert import AlertIncident, AlertRule
@@ -29,10 +31,14 @@ class AlertEngine:
         """Evaluates active alert rules against a freshly harvested telemetry snapshot."""
         # 1. Handle Unreachable Target Special Case
         if not telemetry.is_reachable:
-            return await AlertEngine._handle_unreachable_target(db, instance, telemetry.error_message)
+            return await AlertEngine._handle_unreachable_target(
+                db, instance, telemetry.error_message
+            )
 
         # 2. Fetch all enabled rules
-        rules_res = await db.execute(select(AlertRule).where(AlertRule.is_enabled == True))  # noqa: E712
+        rules_res = await db.execute(
+            select(AlertRule).where(AlertRule.is_enabled.is_(True))
+        )
         rules = rules_res.scalars().all()
 
         modified_incidents: List[AlertIncident] = []
@@ -117,7 +123,9 @@ class AlertEngine:
         return modified_incidents
 
     @staticmethod
-    def _is_condition_breached(current_val: float, operator: str, threshold: float) -> bool:
+    def _is_condition_breached(
+        current_val: float, operator: str, threshold: float
+    ) -> bool:
         """Compares value against threshold with given operator."""
         op = operator.upper()
         if op == "GREATER_THAN":
@@ -166,7 +174,9 @@ class AlertEngine:
         return []
 
     @staticmethod
-    async def dispatch_webhook(incident: AlertIncident, instance: DatabaseInstance) -> None:
+    async def dispatch_webhook(
+        incident: AlertIncident, instance: DatabaseInstance
+    ) -> None:
         """Dispatches structured incident notification payload to configured webhook."""
         if not settings.ALERT_WEBHOOK_URL or "CHANGE" in settings.ALERT_WEBHOOK_URL:
             return
@@ -175,12 +185,30 @@ class AlertEngine:
             "text": f"🚨 *[CloudOps Sentinel]* {incident.severity} - {incident.title}",
             "attachments": [
                 {
-                    "color": "#dc2626" if incident.severity == "CRITICAL" else "#f59e0b",
+                    "color": "#dc2626"
+                    if incident.severity == "CRITICAL"
+                    else "#f59e0b",
                     "fields": [
-                        {"title": "Target Instance", "value": instance.name, "short": True},
-                        {"title": "Environment", "value": instance.environment, "short": True},
-                        {"title": "Current Value", "value": str(incident.current_value), "short": True},
-                        {"title": "Threshold", "value": str(incident.threshold_value), "short": True},
+                        {
+                            "title": "Target Instance",
+                            "value": instance.name,
+                            "short": True,
+                        },
+                        {
+                            "title": "Environment",
+                            "value": instance.environment,
+                            "short": True,
+                        },
+                        {
+                            "title": "Current Value",
+                            "value": str(incident.current_value),
+                            "short": True,
+                        },
+                        {
+                            "title": "Threshold",
+                            "value": str(incident.threshold_value),
+                            "short": True,
+                        },
                         {"title": "Details", "value": incident.message, "short": False},
                     ],
                     "footer": "CloudOps Sentinel Operations Automation",
@@ -193,6 +221,9 @@ class AlertEngine:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.post(settings.ALERT_WEBHOOK_URL, json=payload)
                 if resp.status_code >= 400:
-                    logger.warning("Webhook dispatch returned error status", status_code=resp.status_code)
+                    logger.warning(
+                        "Webhook dispatch returned error status",
+                        status_code=resp.status_code,
+                    )
         except Exception as ex:
             logger.warning("Failed to dispatch alert webhook", error=str(ex))

@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -43,4 +44,3 @@ class AlertIncidentRead(BaseModel):
     triggered_at: datetime
     resolved_at: Optional[datetime] = None
     acknowledged_by: Optional[str] = None
-

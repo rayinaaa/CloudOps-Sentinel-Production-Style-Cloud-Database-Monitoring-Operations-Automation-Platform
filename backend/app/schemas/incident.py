@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.incident import IncidentSeverity, IncidentSource, IncidentStatus
@@ -64,8 +65,12 @@ class IncidentCreate(IncidentBase):
 class IncidentAcknowledgeRequest(BaseModel):
     """Schema for on-call engineer acknowledging an open incident."""
 
-    acknowledged_by: str = Field(..., min_length=2, description="Engineer name or user ID")
-    notes: Optional[str] = Field(None, description="Initial triage or investigation notes")
+    acknowledged_by: str = Field(
+        ..., min_length=2, description="Engineer name or user ID"
+    )
+    notes: Optional[str] = Field(
+        None, description="Initial triage or investigation notes"
+    )
 
 
 class IncidentResolveRequest(BaseModel):
@@ -82,8 +87,12 @@ class IncidentResolveRequest(BaseModel):
 class IncidentEscalateRequest(BaseModel):
     """Schema for manually escalating an incident tier."""
 
-    actor: str = Field(default="on_call_engineer", description="Engineer initiating escalation")
-    new_level: int = Field(..., ge=1, le=3, description="Target escalation tier (1=L2, 2=L3, 3=Exec)")
+    actor: str = Field(
+        default="on_call_engineer", description="Engineer initiating escalation"
+    )
+    new_level: int = Field(
+        ..., ge=1, le=3, description="Target escalation tier (1=L2, 2=L3, 3=Exec)"
+    )
     reason: str = Field(..., min_length=5, description="Justification for escalation")
 
 
@@ -173,4 +182,3 @@ class IncidentReportSummary(BaseModel):
     metrics: IncidentMetricsResponse
     active_critical_incidents: List[IncidentRead]
     recent_resolved_incidents: List[IncidentRead]
-

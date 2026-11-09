@@ -10,7 +10,9 @@ and gathers deep operational telemetry from system catalog views:
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
+
 import asyncpg
+
 from app.core.config import settings
 from app.core.logging import logger
 
@@ -102,7 +104,9 @@ class DatabaseInspector:
             blks_read = int(db_row["blks_read"] or 0) if db_row else 0
             blks_hit = int(db_row["blks_hit"] or 0) if db_row else 0
             total_reads = blks_read + blks_hit
-            cache_hit_ratio = round(blks_hit / total_reads, 4) if total_reads > 0 else 1.0
+            cache_hit_ratio = (
+                round(blks_hit / total_reads, 4) if total_reads > 0 else 1.0
+            )
 
             xact_commit = int(db_row["xact_commit"] or 0) if db_row else 0
             xact_rollback = int(db_row["xact_rollback"] or 0) if db_row else 0

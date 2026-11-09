@@ -1,6 +1,7 @@
 """API v1 Aggregator Router."""
 
 from fastapi import APIRouter
+
 from app.api.v1.endpoints import (
     alerts,
     databases,

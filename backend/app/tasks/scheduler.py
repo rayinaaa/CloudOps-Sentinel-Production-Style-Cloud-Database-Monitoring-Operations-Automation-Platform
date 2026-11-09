@@ -7,7 +7,9 @@ evaluates AlertRules, updates Prometheus gauges, and logs operational telemetry.
 import asyncio
 from datetime import datetime, timezone
 from typing import Optional
+
 from sqlalchemy import select
+
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.logging import logger
@@ -38,7 +40,10 @@ async def poll_database_targets() -> int:
                     # Determine appropriate credentials for target vs metadata DB
                     inst_password = (
                         settings.TARGET_POSTGRES_PASSWORD
-                        if (instance.port == settings.TARGET_POSTGRES_PORT or instance.database_name != settings.POSTGRES_DB)
+                        if (
+                            instance.port == settings.TARGET_POSTGRES_PORT
+                            or instance.database_name != settings.POSTGRES_DB
+                        )
                         else settings.POSTGRES_PASSWORD
                     )
                     telemetry = await DatabaseInspector.inspect(
@@ -113,12 +118,16 @@ async def poll_database_targets() -> int:
 async def telemetry_background_loop() -> None:
     """Continuously runs telemetry polling at configured intervals until cancelled."""
     interval = max(5, settings.METRICS_SCRAPE_INTERVAL_SECONDS)
-    logger.info("Starting Sentinel Telemetry Background Worker", interval_seconds=interval)
+    logger.info(
+        "Starting Sentinel Telemetry Background Worker", interval_seconds=interval
+    )
 
     while not _stop_event.is_set():
         try:
             polled_count = await poll_database_targets()
-            logger.debug("Completed telemetry scrape cycle", targets_polled=polled_count)
+            logger.debug(
+                "Completed telemetry scrape cycle", targets_polled=polled_count
+            )
         except Exception as loop_err:
             logger.error("Telemetry loop iteration error", error=str(loop_err))
 
@@ -148,4 +157,3 @@ async def stop_telemetry_scheduler() -> None:
         except asyncio.CancelledError:
             pass
         logger.info("Sentinel Telemetry Scheduler stopped")
-

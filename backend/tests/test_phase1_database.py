@@ -11,8 +11,9 @@ Validates:
 
 import os
 import uuid
-import pytest
+
 import psycopg2
+import pytest
 from psycopg2 import errors
 
 # Database connection parameters for testing
@@ -107,10 +108,13 @@ def test_app_users_role_check_constraint(db_conn):
         cur.execute("SELECT id FROM tenants LIMIT 1;")
         tenant_id = cur.fetchone()[0]
         with pytest.raises(errors.CheckViolation):
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO app_users (tenant_id, email, full_name, role) 
                 VALUES (%s, 'super@example.com', 'Super Hacker', 'SUPER_ADMIN');
-            """, (tenant_id,))
+            """,
+                (tenant_id,),
+            )
     db_conn.rollback()
 
 
@@ -120,10 +124,13 @@ def test_tenant_scoped_user_email_uniqueness(db_conn):
         cur.execute("SELECT tenant_id, email FROM app_users LIMIT 1;")
         tenant_id, email = cur.fetchone()
         with pytest.raises(errors.UniqueViolation):
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO app_users (tenant_id, email, full_name, role) 
                 VALUES (%s, %s, 'Duplicate Person', 'MEMBER');
-            """, (tenant_id, email))
+            """,
+                (tenant_id, email),
+            )
     db_conn.rollback()
 
 
@@ -134,22 +141,30 @@ def test_foreign_key_cascade_deletion(db_conn):
 
     with db_conn.cursor() as cur:
         # Create temporary tenant
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO tenants (id, name, slug, plan, status) 
             VALUES (%s, 'Cascade Test Org', %s, 'STARTER', 'ACTIVE');
-        """, (temp_tenant_id, temp_slug))
+        """,
+            (temp_tenant_id, temp_slug),
+        )
 
         # Create two temporary users
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO app_users (tenant_id, email, full_name) 
             VALUES 
                 (%s, 'u1@cascade.test', 'User One'),
                 (%s, 'u2@cascade.test', 'User Two');
-        """, (temp_tenant_id, temp_tenant_id))
+        """,
+            (temp_tenant_id, temp_tenant_id),
+        )
         db_conn.commit()
 
         # Confirm users exist
-        cur.execute("SELECT count(*) FROM app_users WHERE tenant_id = %s;", (temp_tenant_id,))
+        cur.execute(
+            "SELECT count(*) FROM app_users WHERE tenant_id = %s;", (temp_tenant_id,)
+        )
         assert cur.fetchone()[0] == 2
 
         # Delete tenant
@@ -157,7 +172,9 @@ def test_foreign_key_cascade_deletion(db_conn):
         db_conn.commit()
 
         # Verify users were automatically cascaded
-        cur.execute("SELECT count(*) FROM app_users WHERE tenant_id = %s;", (temp_tenant_id,))
+        cur.execute(
+            "SELECT count(*) FROM app_users WHERE tenant_id = %s;", (temp_tenant_id,)
+        )
         assert cur.fetchone()[0] == 0
 
 

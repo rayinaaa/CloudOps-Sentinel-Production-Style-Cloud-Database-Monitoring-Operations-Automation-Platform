@@ -1,0 +1,7 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Ensure bash scripts and SQL files always have LF line endings
+*.sh text eol=lf
+*.sql text eol=lf
+*.py text eol=lf

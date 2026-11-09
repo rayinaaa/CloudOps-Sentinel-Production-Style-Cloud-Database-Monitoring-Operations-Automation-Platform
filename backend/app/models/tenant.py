@@ -3,9 +3,11 @@
 import uuid
 from datetime import datetime
 from typing import List
+
 from sqlalchemy import BigInteger, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.database import Base
 from app.models.base import utc_now
 
@@ -22,9 +24,15 @@ class Tenant(Base):
         index=True,
     )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
-    slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
-    plan: Mapped[str] = mapped_column(String(32), default="FREE", nullable=False, index=True)
-    status: Mapped[str] = mapped_column(String(32), default="ACTIVE", nullable=False, index=True)
+    slug: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True
+    )
+    plan: Mapped[str] = mapped_column(
+        String(32), default="FREE", nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(
+        String(32), default="ACTIVE", nullable=False, index=True
+    )
     max_users: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     max_storage_bytes: Mapped[int] = mapped_column(
         BigInteger, default=1073741824, nullable=False
@@ -43,4 +51,3 @@ class Tenant(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
-

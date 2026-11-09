@@ -8,10 +8,19 @@ readable colored logs in local development.
 import logging
 import re
 import sys
+
 import structlog
+
 from app.core.config import settings
 
-SENSITIVE_KEY_PATTERNS = {"password", "secret", "token", "authorization", "api_key", "private_key"}
+SENSITIVE_KEY_PATTERNS = {
+    "password",
+    "secret",
+    "token",
+    "authorization",
+    "api_key",
+    "private_key",
+}
 URI_PASSWORD_PATTERN = re.compile(r"://([^:@]+):([^@]+)@")
 
 
@@ -68,4 +77,3 @@ def setup_logging() -> None:
 
 
 logger = structlog.get_logger("cloudops.sentinel")
-

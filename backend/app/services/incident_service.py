@@ -1,10 +1,11 @@
 """Incident Lifecycle Management & Escalation Engine for CloudOps Sentinel."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
+
 from fastapi import HTTPException, status
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -28,17 +29,17 @@ from app.schemas.incident import (
 
 # SRE Response & Resolution SLAs in seconds
 SLA_ACKNOWLEDGE_LIMITS = {
-    IncidentSeverity.CRITICAL.value: 900,     # 15 minutes
-    IncidentSeverity.HIGH.value: 1800,        # 30 minutes
-    IncidentSeverity.MEDIUM.value: 3600,      # 1 hour
-    IncidentSeverity.LOW.value: 86400,        # 24 hours
+    IncidentSeverity.CRITICAL.value: 900,  # 15 minutes
+    IncidentSeverity.HIGH.value: 1800,  # 30 minutes
+    IncidentSeverity.MEDIUM.value: 3600,  # 1 hour
+    IncidentSeverity.LOW.value: 86400,  # 24 hours
 }
 
 SLA_RESOLVE_LIMITS = {
-    IncidentSeverity.CRITICAL.value: 3600,     # 1 hour
-    IncidentSeverity.HIGH.value: 14400,        # 4 hours
-    IncidentSeverity.MEDIUM.value: 86400,      # 24 hours
-    IncidentSeverity.LOW.value: 259200,        # 72 hours
+    IncidentSeverity.CRITICAL.value: 3600,  # 1 hour
+    IncidentSeverity.HIGH.value: 14400,  # 4 hours
+    IncidentSeverity.MEDIUM.value: 86400,  # 24 hours
+    IncidentSeverity.LOW.value: 259200,  # 72 hours
 }
 
 
@@ -101,7 +102,8 @@ class IncidentService:
             to_status=IncidentStatus.OPEN.value,
             action="CREATED",
             actor=actor,
-            notes=payload.description or f"Incident opened with {severity_val} severity.",
+            notes=payload.description
+            or f"Incident opened with {severity_val} severity.",
         )
         db.add(history_entry)
         await db.flush()
@@ -348,7 +350,11 @@ class IncidentService:
                         or alert.annotations.get("description")
                         or f"Alert firing: {alert_name}"
                     )
-                    desc_text = alert.annotations.get("description") or alert.annotations.get("runbook") or ""
+                    desc_text = (
+                        alert.annotations.get("description")
+                        or alert.annotations.get("runbook")
+                        or ""
+                    )
 
                     create_schema = IncidentCreate(
                         title=summary_text,
@@ -422,29 +428,29 @@ class IncidentService:
                 # Level 1 after 5 mins, Level 2 after 15 mins
                 if unacked_seconds >= 900 and incident.escalation_level < 2:
                     new_tier = 2
-                    reason = f"CRITICAL incident unacknowledged for {int(unacked_seconds/60)}m (Breached 15m L2 SLA threshold)"
+                    reason = f"CRITICAL incident unacknowledged for {int(unacked_seconds / 60)}m (Breached 15m L2 SLA threshold)"
                 elif unacked_seconds >= 300 and incident.escalation_level < 1:
                     new_tier = 1
-                    reason = f"CRITICAL incident unacknowledged for {int(unacked_seconds/60)}m (Breached 5m L1 SLA threshold)"
+                    reason = f"CRITICAL incident unacknowledged for {int(unacked_seconds / 60)}m (Breached 5m L1 SLA threshold)"
 
             elif incident.severity == IncidentSeverity.HIGH.value:
                 # Level 1 after 15 mins, Level 2 after 30 mins
                 if unacked_seconds >= 1800 and incident.escalation_level < 2:
                     new_tier = 2
-                    reason = f"HIGH incident unacknowledged for {int(unacked_seconds/60)}m (Breached 30m L2 SLA threshold)"
+                    reason = f"HIGH incident unacknowledged for {int(unacked_seconds / 60)}m (Breached 30m L2 SLA threshold)"
                 elif unacked_seconds >= 900 and incident.escalation_level < 1:
                     new_tier = 1
-                    reason = f"HIGH incident unacknowledged for {int(unacked_seconds/60)}m (Breached 15m L1 SLA threshold)"
+                    reason = f"HIGH incident unacknowledged for {int(unacked_seconds / 60)}m (Breached 15m L1 SLA threshold)"
 
             elif incident.severity == IncidentSeverity.MEDIUM.value:
                 if unacked_seconds >= 3600 and incident.escalation_level < 1:
                     new_tier = 1
-                    reason = f"MEDIUM incident unacknowledged for {int(unacked_seconds/60)}m (Breached 1h SLA threshold)"
+                    reason = f"MEDIUM incident unacknowledged for {int(unacked_seconds / 60)}m (Breached 1h SLA threshold)"
 
             elif incident.severity == IncidentSeverity.LOW.value:
                 if unacked_seconds >= 14400 and incident.escalation_level < 1:
                     new_tier = 1
-                    reason = f"LOW incident unacknowledged for {int(unacked_seconds/60)}m (Breached 4h SLA threshold)"
+                    reason = f"LOW incident unacknowledged for {int(unacked_seconds / 60)}m (Breached 4h SLA threshold)"
 
             if new_tier is not None and new_tier > incident.escalation_level:
                 await IncidentService.escalate_incident(
@@ -467,14 +473,26 @@ class IncidentService:
 
         total = len(incidents)
         open_count = sum(1 for i in incidents if i.status == IncidentStatus.OPEN.value)
-        acked_count = sum(1 for i in incidents if i.status == IncidentStatus.ACKNOWLEDGED.value)
-        resolved_count = sum(1 for i in incidents if i.status == IncidentStatus.RESOLVED.value)
+        acked_count = sum(
+            1 for i in incidents if i.status == IncidentStatus.ACKNOWLEDGED.value
+        )
+        resolved_count = sum(
+            1 for i in incidents if i.status == IncidentStatus.RESOLVED.value
+        )
 
         by_severity = {
-            IncidentSeverity.CRITICAL.value: sum(1 for i in incidents if i.severity == IncidentSeverity.CRITICAL.value),
-            IncidentSeverity.HIGH.value: sum(1 for i in incidents if i.severity == IncidentSeverity.HIGH.value),
-            IncidentSeverity.MEDIUM.value: sum(1 for i in incidents if i.severity == IncidentSeverity.MEDIUM.value),
-            IncidentSeverity.LOW.value: sum(1 for i in incidents if i.severity == IncidentSeverity.LOW.value),
+            IncidentSeverity.CRITICAL.value: sum(
+                1 for i in incidents if i.severity == IncidentSeverity.CRITICAL.value
+            ),
+            IncidentSeverity.HIGH.value: sum(
+                1 for i in incidents if i.severity == IncidentSeverity.HIGH.value
+            ),
+            IncidentSeverity.MEDIUM.value: sum(
+                1 for i in incidents if i.severity == IncidentSeverity.MEDIUM.value
+            ),
+            IncidentSeverity.LOW.value: sum(
+                1 for i in incidents if i.severity == IncidentSeverity.LOW.value
+            ),
         }
 
         by_status = {
@@ -484,12 +502,26 @@ class IncidentService:
         }
 
         # Calculate Mean Time To Acknowledge (MTTA)
-        ack_durations = [i.time_to_acknowledge_seconds for i in incidents if i.time_to_acknowledge_seconds is not None]
-        mtta_sec = round(sum(ack_durations) / len(ack_durations), 2) if ack_durations else None
+        ack_durations = [
+            i.time_to_acknowledge_seconds
+            for i in incidents
+            if i.time_to_acknowledge_seconds is not None
+        ]
+        mtta_sec = (
+            round(sum(ack_durations) / len(ack_durations), 2) if ack_durations else None
+        )
 
         # Calculate Mean Time To Resolve (MTTR)
-        resolve_durations = [i.time_to_resolve_seconds for i in incidents if i.time_to_resolve_seconds is not None]
-        mttr_sec = round(sum(resolve_durations) / len(resolve_durations), 2) if resolve_durations else None
+        resolve_durations = [
+            i.time_to_resolve_seconds
+            for i in incidents
+            if i.time_to_resolve_seconds is not None
+        ]
+        mttr_sec = (
+            round(sum(resolve_durations) / len(resolve_durations), 2)
+            if resolve_durations
+            else None
+        )
 
         # Evaluate SLA compliance
         sla_compliant_count = 0
@@ -524,7 +556,9 @@ class IncidentService:
         )
 
         active_escalations = sum(
-            1 for i in incidents if i.escalation_level > 0 and i.status != IncidentStatus.RESOLVED.value
+            1
+            for i in incidents
+            if i.escalation_level > 0 and i.status != IncidentStatus.RESOLVED.value
         )
 
         return IncidentMetricsResponse(
@@ -574,4 +608,3 @@ class IncidentService:
             active_critical_incidents=active_critical,
             recent_resolved_incidents=recent_resolved,
         )
-

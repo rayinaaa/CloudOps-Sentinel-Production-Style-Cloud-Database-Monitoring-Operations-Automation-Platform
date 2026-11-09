@@ -2,7 +2,8 @@
 
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+
+from pydantic import BaseModel, ConfigDict
 
 
 class MetricSnapshotRead(BaseModel):
@@ -36,4 +37,3 @@ class MetricSummary(BaseModel):
     database_size_mb: float
     slow_queries_last_hour: int
     last_polled_at: datetime
-

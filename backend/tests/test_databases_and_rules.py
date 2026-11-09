@@ -8,9 +8,11 @@ Covers:
 """
 
 import uuid
+
 import pytest
-from httpx import AsyncClient
 from fastapi import status
+from httpx import AsyncClient
+
 from app.core.logging import redact_sensitive_data
 
 
@@ -58,7 +60,9 @@ async def test_maintenance_tasks_listing_and_filtering(client: AsyncClient):
 
     # Filter with non-existent database UUID (must return empty list, not crash)
     random_id = uuid.uuid4()
-    filtered_resp = await client.get(f"/api/v1/operations/tasks?database_id={random_id}")
+    filtered_resp = await client.get(
+        f"/api/v1/operations/tasks?database_id={random_id}"
+    )
     assert filtered_resp.status_code == status.HTTP_200_OK
     assert filtered_resp.json() == []
 
@@ -109,4 +113,3 @@ def test_sensitive_credential_logging_redaction():
     assert "super_secret_pw" not in processed["connection_url"]
     assert "admin:***@db.prod.internal" in processed["connection_url"]
     assert processed["safe_metric"] == 42
-

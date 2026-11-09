@@ -2,6 +2,7 @@
 
 import uuid
 from typing import Any, Dict, List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,10 +50,18 @@ async def create_incident(
     summary="List all incidents with filters",
 )
 async def list_incidents(
-    status: Optional[str] = Query(None, description="Filter by status (OPEN, ACKNOWLEDGED, RESOLVED)"),
-    severity: Optional[str] = Query(None, description="Filter by severity (CRITICAL, HIGH, MEDIUM, LOW)"),
-    source: Optional[str] = Query(None, description="Filter by source (ALERTMANAGER, HEALTH_CHECK_PROBE, etc.)"),
-    component: Optional[str] = Query(None, description="Filter by component (DATABASE, API, etc.)"),
+    status: Optional[str] = Query(
+        None, description="Filter by status (OPEN, ACKNOWLEDGED, RESOLVED)"
+    ),
+    severity: Optional[str] = Query(
+        None, description="Filter by severity (CRITICAL, HIGH, MEDIUM, LOW)"
+    ),
+    source: Optional[str] = Query(
+        None, description="Filter by source (ALERTMANAGER, HEALTH_CHECK_PROBE, etc.)"
+    ),
+    component: Optional[str] = Query(
+        None, description="Filter by component (DATABASE, API, etc.)"
+    ),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -201,4 +210,3 @@ async def escalate_incident_manual(
     await db.commit()
     await db.refresh(incident)
     return incident
-

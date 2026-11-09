@@ -11,10 +11,10 @@ set -euo pipefail
 # ------------------------------------------------------------------------------
 # 1. Configuration & Thresholds
 # ------------------------------------------------------------------------------
-DB_HOST="${DB_HOST:-localhost}"
-DB_PORT="${DB_PORT:-5434}"
-DB_NAME="${DB_NAME:-sentinel_db}"
-DB_USER="${DB_USER:-sentinel_admin}"
+DB_HOST="${DB_HOST:-${POSTGRES_SERVER:-localhost}}"
+DB_PORT="${DB_PORT:-${POSTGRES_PORT:-5434}}"
+DB_NAME="${DB_NAME:-${POSTGRES_DB:-sentinel_db}}"
+DB_USER="${DB_USER:-${POSTGRES_USER:-sentinel_admin}}"
 WARN_SATURATION_PCT="${CONN_WARN_SATURATION:-75}"
 CRIT_SATURATION_PCT="${CONN_CRIT_SATURATION:-90}"
 IDLE_IN_TRANS_WARN_SEC="${IDLE_TRANS_WARN_SEC:-60}"

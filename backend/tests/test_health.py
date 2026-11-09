@@ -22,4 +22,3 @@ async def test_liveness_probe(client: AsyncClient):
     data = response.json()
     assert data["status"] == "UP"
     assert "timestamp" in data
-

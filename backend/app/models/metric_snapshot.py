@@ -2,9 +2,11 @@
 
 import uuid
 from datetime import datetime
+
 from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Index, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.models.base import TimestampedBase, utc_now
 
 
@@ -26,7 +28,7 @@ class MetricSnapshot(TimestampedBase):
         index=True,
         doc="UTC time when telemetry was polled",
     )
-    
+
     # Connection Pool Telemetry
     active_connections: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     idle_connections: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -37,13 +39,23 @@ class MetricSnapshot(TimestampedBase):
 
     # Performance & Throughput
     cache_hit_ratio: Mapped[float] = mapped_column(
-        Float, default=1.0, nullable=False, doc="Buffer pool cache hit ratio (0.00 to 1.00)"
+        Float,
+        default=1.0,
+        nullable=False,
+        doc="Buffer pool cache hit ratio (0.00 to 1.00)",
     )
-    transactions_committed: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
-    transactions_rolled_back: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+    transactions_committed: Mapped[int] = mapped_column(
+        BigInteger, default=0, nullable=False
+    )
+    transactions_rolled_back: Mapped[int] = mapped_column(
+        BigInteger, default=0, nullable=False
+    )
     deadlocks_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     slow_queries_count: Mapped[int] = mapped_column(
-        Integer, default=0, nullable=False, doc="Queries exceeding threshold in sample interval"
+        Integer,
+        default=0,
+        nullable=False,
+        doc="Queries exceeding threshold in sample interval",
     )
     replication_lag_seconds: Mapped[float] = mapped_column(
         Float, default=0.0, nullable=False, doc="Replication lag in seconds"
@@ -51,7 +63,10 @@ class MetricSnapshot(TimestampedBase):
 
     # Storage Capacity
     database_size_bytes: Mapped[int] = mapped_column(
-        BigInteger, default=0, nullable=False, doc="Catalog disk space consumed in bytes"
+        BigInteger,
+        default=0,
+        nullable=False,
+        doc="Catalog disk space consumed in bytes",
     )
 
     # Relationship
@@ -59,7 +74,4 @@ class MetricSnapshot(TimestampedBase):
         "DatabaseInstance", back_populates="metrics"
     )
 
-    __table_args__ = (
-        Index("idx_metric_db_time", "database_id", "recorded_at"),
-    )
-
+    __table_args__ = (Index("idx_metric_db_time", "database_id", "recorded_at"),)

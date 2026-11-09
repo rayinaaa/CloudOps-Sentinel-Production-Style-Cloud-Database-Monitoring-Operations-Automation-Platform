@@ -1,14 +1,16 @@
 """Endpoints for operational alert rules and incident management."""
 
 import uuid
-from typing import List, Optional
 from datetime import datetime, timezone
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+
 from app.core.database import get_db
-from app.models.alert import AlertRule, AlertIncident
-from app.schemas.alert import AlertRuleCreate, AlertRuleRead, AlertIncidentRead
+from app.models.alert import AlertIncident, AlertRule
+from app.schemas.alert import AlertIncidentRead, AlertRuleCreate, AlertRuleRead
 
 router = APIRouter(prefix="/alerts", tags=["Alerts & Incidents"])
 
@@ -22,7 +24,9 @@ async def list_alert_rules(
     return list(result.scalars().all())
 
 
-@router.post("/rules", response_model=AlertRuleRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/rules", response_model=AlertRuleRead, status_code=status.HTTP_201_CREATED
+)
 async def create_alert_rule(
     payload: AlertRuleCreate,
     db: AsyncSession = Depends(get_db),
@@ -97,4 +101,3 @@ async def resolve_incident(
     await db.flush()
     await db.refresh(incident)
     return incident
-

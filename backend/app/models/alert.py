@@ -3,9 +3,11 @@
 import uuid
 from datetime import datetime
 from typing import Optional
+
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.models.base import TimestampedBase, utc_now
 
 
@@ -93,7 +95,4 @@ class AlertIncident(TimestampedBase):
     )
     rule: Mapped[Optional["AlertRule"]] = relationship("AlertRule")
 
-    __table_args__ = (
-        Index("idx_incident_db_status", "database_id", "status"),
-    )
-
+    __table_args__ = (Index("idx_incident_db_status", "database_id", "status"),)

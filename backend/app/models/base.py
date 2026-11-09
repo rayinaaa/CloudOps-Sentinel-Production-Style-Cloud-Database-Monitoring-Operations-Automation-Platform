@@ -2,9 +2,11 @@
 
 import uuid
 from datetime import datetime, timezone
+
 from sqlalchemy import DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.core.database import Base
 
 
@@ -38,4 +40,3 @@ class TimestampedBase(Base):
         nullable=False,
         doc="Record last updated UTC timestamp",
     )
-

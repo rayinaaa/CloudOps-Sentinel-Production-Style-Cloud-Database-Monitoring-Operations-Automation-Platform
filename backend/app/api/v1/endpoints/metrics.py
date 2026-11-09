@@ -2,9 +2,11 @@
 
 import uuid
 from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+
 from app.core.database import get_db
 from app.models.database_instance import DatabaseInstance
 from app.models.metric_snapshot import MetricSnapshot
@@ -83,4 +85,3 @@ async def get_metric_summary(
         slow_queries_last_hour=latest.slow_queries_count,
         last_polled_at=latest.recorded_at,
     )
-

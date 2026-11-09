@@ -3,9 +3,11 @@
 import uuid
 from datetime import datetime
 from typing import Optional
+
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.models.base import TimestampedBase, utc_now
 
 
@@ -70,7 +72,4 @@ class MaintenanceTask(TimestampedBase):
         "DatabaseInstance", back_populates="maintenance_tasks"
     )
 
-    __table_args__ = (
-        Index("idx_maintenance_db_status", "database_id", "status"),
-    )
-
+    __table_args__ = (Index("idx_maintenance_db_status", "database_id", "status"),)

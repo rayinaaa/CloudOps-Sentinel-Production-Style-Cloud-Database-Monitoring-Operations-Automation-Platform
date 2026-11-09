@@ -3,11 +3,14 @@
 import uuid
 from datetime import datetime
 from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class MaintenanceTaskTrigger(BaseModel):
-    task_type: str = Field(..., description="S3_BACKUP, VACUUM_ANALYZE, HEALTH_AUDIT, FAILOVER_TEST")
+    task_type: str = Field(
+        ..., description="S3_BACKUP, VACUUM_ANALYZE, HEALTH_AUDIT, FAILOVER_TEST"
+    )
     initiated_by: str = Field(default="user:ops_engineer")
 
 
@@ -25,4 +28,3 @@ class MaintenanceTaskRead(BaseModel):
     execution_logs: Optional[str] = None
     initiated_by: str
     created_at: datetime
-

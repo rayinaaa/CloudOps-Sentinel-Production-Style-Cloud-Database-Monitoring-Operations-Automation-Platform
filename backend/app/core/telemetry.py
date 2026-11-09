@@ -1,6 +1,6 @@
 """Custom Prometheus Telemetry Gauges and Metrics Collector for CloudOps Sentinel."""
 
-from prometheus_client import Gauge, Counter
+from prometheus_client import Counter, Gauge
 
 # Connection Metrics
 DB_ACTIVE_CONNECTIONS = Gauge(
@@ -59,7 +59,9 @@ MAINTENANCE_JOBS_TOTAL = Counter(
 )
 
 
-def update_prometheus_metrics(instance_name: str, environment: str, metrics: dict) -> None:
+def update_prometheus_metrics(
+    instance_name: str, environment: str, metrics: dict
+) -> None:
     """Updates Prometheus gauges with fresh telemetry snapshot data."""
     labels = {"database_name": instance_name, "environment": environment}
 
@@ -70,7 +72,9 @@ def update_prometheus_metrics(instance_name: str, environment: str, metrics: dic
     if "max_connections" in metrics:
         DB_MAX_CONNECTIONS.labels(**labels).set(metrics["max_connections"])
     if "connection_pool_usage_pct" in metrics:
-        DB_POOL_SATURATION_RATIO.labels(**labels).set(metrics["connection_pool_usage_pct"])
+        DB_POOL_SATURATION_RATIO.labels(**labels).set(
+            metrics["connection_pool_usage_pct"]
+        )
     if "cache_hit_ratio" in metrics:
         DB_CACHE_HIT_RATIO.labels(**labels).set(metrics["cache_hit_ratio"])
     if "slow_queries_count" in metrics:
@@ -79,4 +83,3 @@ def update_prometheus_metrics(instance_name: str, environment: str, metrics: dic
         DB_DEADLOCKS_COUNT.labels(**labels).set(metrics["deadlocks_count"])
     if "database_size_bytes" in metrics:
         DB_SIZE_BYTES.labels(**labels).set(metrics["database_size_bytes"])
-

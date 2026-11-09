@@ -2,9 +2,11 @@
 
 from datetime import datetime
 from typing import List, Optional
+
 from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.models.base import TimestampedBase
 
 
@@ -103,4 +105,3 @@ class DatabaseInstance(TimestampedBase):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
-

@@ -9,8 +9,8 @@ Covers:
 """
 
 import pytest
-from httpx import AsyncClient
 from fastapi import status
+from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
@@ -98,8 +98,12 @@ async def test_trigger_backup_invalid_identifier_rejection(client: AsyncClient):
     ]
 
     for bad_name in malicious_inputs:
-        resp = await client.post(f"/api/v1/ops/backups/trigger?database_name={bad_name}")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST, f"Expected 400 for input: {bad_name}"
+        resp = await client.post(
+            f"/api/v1/ops/backups/trigger?database_name={bad_name}"
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST, (
+            f"Expected 400 for input: {bad_name}"
+        )
         data = resp.json()
         assert "Invalid database name" in data["detail"]
 
@@ -120,4 +124,3 @@ async def test_list_operational_logs(client: AsyncClient):
     assert log_entry["level"] in ["INFO", "WARN", "ERROR"]
     assert "component" in log_entry
     assert "message" in log_entry
-

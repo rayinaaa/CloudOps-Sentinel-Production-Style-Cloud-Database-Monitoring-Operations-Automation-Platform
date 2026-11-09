@@ -13,10 +13,10 @@ set -euo pipefail
 # ------------------------------------------------------------------------------
 # 1. Configuration & Default Values
 # ------------------------------------------------------------------------------
-DB_HOST="${DB_HOST:-localhost}"
-DB_PORT="${DB_PORT:-5434}"
-DB_USER="${DB_USER:-sentinel_admin}"
-PRIMARY_DB_NAME="${PRIMARY_DB_NAME:-sentinel_db}"
+DB_HOST="${DB_HOST:-${POSTGRES_SERVER:-localhost}}"
+DB_PORT="${DB_PORT:-${POSTGRES_PORT:-5434}}"
+DB_USER="${DB_USER:-${POSTGRES_USER:-sentinel_admin}}"
+PRIMARY_DB_NAME="${PRIMARY_DB_NAME:-${POSTGRES_DB:-sentinel_db}}"
 TEST_RESTORE_DB="${TARGET_TEST_DB:-sentinel_dr_test}"
 BACKUP_FILE="${1:-}"
 

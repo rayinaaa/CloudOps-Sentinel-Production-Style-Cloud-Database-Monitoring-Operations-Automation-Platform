@@ -62,10 +62,12 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Install Application Dependencies
+      - name: Install Application Dependencies & System Tools
         run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
           python -m pip install --upgrade pip
           pip install -r backend/requirements-dev.txt
+          chmod +x scripts/*.sh
 
       - name: Run Alembic Migrations
         env:
@@ -85,6 +87,11 @@ jobs:
           POSTGRES_DB: sentinel_db
           POSTGRES_USER: sentinel_admin
           POSTGRES_PASSWORD: sentinel_secret_dev_pass
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: sentinel_db
+          DB_USER: sentinel_admin
+          PGPASSWORD: sentinel_secret_dev_pass
         run: |
           cd backend
           pytest tests/ -v --cov=app --cov-report=term-missing

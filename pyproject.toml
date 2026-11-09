@@ -1,0 +1,25 @@
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+exclude = [
+    ".git",
+    ".pytest_cache",
+    ".ruff_cache",
+    "node_modules",
+    "frontend",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",  # Line too long (handled by formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/app/models/*" = ["F821"]
+"backend/app/schemas/__init__.py" = ["F401"]
+"backend/alembic/*" = ["F401"]
+"backend/tests/*" = ["W291", "W293"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
