@@ -14,6 +14,7 @@ import time
 from datetime import datetime, timezone
 
 import asyncpg
+import oracledb
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -165,16 +166,32 @@ class MaintenanceService:
         # Connect to target database
         conn = None
         try:
-            conn = await asyncpg.connect(
-                host=instance.host,
-                port=instance.port,
-                user=instance.username,
-                password=settings.POSTGRES_PASSWORD,
-                database=instance.database_name,
-                timeout=10.0,
-            )
-            # VACUUM cannot run inside a transaction block in PostgreSQL
-            await conn.execute("VACUUM (ANALYZE, VERBOSE);")
+            if instance.engine.lower().startswith("oracle") or instance.port == 1521:
+                oracle_conn = await oracledb.connect_async(
+                    host=instance.host,
+                    port=instance.port,
+                    user=instance.username,
+                    password=settings.ORACLE_PASSWORD,
+                    service_name=instance.database_name or "FREEPDB1",
+                    tcp_connect_timeout=10.0,
+                )
+                cursor = oracle_conn.cursor()
+                await cursor.execute(
+                    "BEGIN DBMS_STATS.GATHER_SCHEMA_STATS(ownname => USER); END;"
+                )
+                await cursor.close()
+                await oracle_conn.close()
+            else:
+                conn = await asyncpg.connect(
+                    host=instance.host,
+                    port=instance.port,
+                    user=instance.username,
+                    password=settings.POSTGRES_PASSWORD,
+                    database=instance.database_name,
+                    timeout=10.0,
+                )
+                # VACUUM cannot run inside a transaction block in PostgreSQL
+                await conn.execute("VACUUM (ANALYZE, VERBOSE);")
             duration_s = round(time.perf_counter() - start_time, 2)
 
             task.status = "SUCCESS"
@@ -232,25 +249,57 @@ class MaintenanceService:
 
         conn = None
         try:
-            conn = await asyncpg.connect(
-                host=instance.host,
-                port=instance.port,
-                user=instance.username,
-                password=settings.POSTGRES_PASSWORD,
-                database=instance.database_name,
-                timeout=5.0,
-            )
-            terminate_sql = """
-            SELECT pg_terminate_backend(pid), pid, state_change
-            FROM pg_stat_activity
-            WHERE datname = current_database()
-              AND state = 'idle in transaction'
-              AND state_change < now() - ($1 || ' seconds')::interval;
-            """
-            terminated_rows = await conn.fetch(
-                terminate_sql, str(idle_threshold_seconds)
-            )
-            terminated_count = len(terminated_rows)
+            terminated_count = 0
+            if instance.engine.lower().startswith("oracle") or instance.port == 1521:
+                oracle_conn = await oracledb.connect_async(
+                    host=instance.host,
+                    port=instance.port,
+                    user=instance.username,
+                    password=settings.ORACLE_PASSWORD,
+                    service_name=instance.database_name or "FREEPDB1",
+                    tcp_connect_timeout=5.0,
+                )
+                cursor = oracle_conn.cursor()
+                # Find inactive/idle user sessions
+                await cursor.execute(
+                    """
+                    SELECT sid, serial# FROM v$session
+                    WHERE status = 'INACTIVE' AND type != 'BACKGROUND'
+                      AND last_call_et > :threshold
+                """,
+                    threshold=idle_threshold_seconds,
+                )
+                sessions = await cursor.fetchall()
+                for sid, serial in sessions:
+                    try:
+                        await cursor.execute(
+                            f"ALTER SYSTEM KILL SESSION '{sid},{serial}' IMMEDIATE"
+                        )
+                        terminated_count += 1
+                    except Exception:
+                        pass
+                await cursor.close()
+                await oracle_conn.close()
+            else:
+                conn = await asyncpg.connect(
+                    host=instance.host,
+                    port=instance.port,
+                    user=instance.username,
+                    password=settings.POSTGRES_PASSWORD,
+                    database=instance.database_name,
+                    timeout=5.0,
+                )
+                terminate_sql = """
+                SELECT pg_terminate_backend(pid), pid, state_change
+                FROM pg_stat_activity
+                WHERE datname = current_database()
+                  AND state = 'idle in transaction'
+                  AND state_change < now() - ($1 || ' seconds')::interval;
+                """
+                terminated_rows = await conn.fetch(
+                    terminate_sql, str(idle_threshold_seconds)
+                )
+                terminated_count = len(terminated_rows)
 
             duration_s = round(time.perf_counter() - start_time, 2)
             task.status = "SUCCESS"

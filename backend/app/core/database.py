@@ -62,8 +62,13 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def check_database_connection() -> bool:
     """Executes a lightweight query to verify connectivity to the Sentinel database."""
     try:
+        ping_sql = (
+            "SELECT 1 FROM DUAL"
+            if "oracle" in settings.async_database_url
+            else "SELECT 1"
+        )
         async with engine.connect() as conn:
-            result = await conn.execute(text("SELECT 1"))
+            result = await conn.execute(text(ping_sql))
             return result.scalar() == 1
     except Exception as exc:
         logger.warning("Database connectivity check failed", error=str(exc))

@@ -71,6 +71,7 @@ jobs:
 
       - name: Run Alembic Migrations
         env:
+          DB_ENGINE: postgresql
           POSTGRES_SERVER: localhost
           POSTGRES_PORT: 5432
           POSTGRES_DB: sentinel_db
@@ -82,6 +83,7 @@ jobs:
 
       - name: Execute Pytest Suite with Coverage
         env:
+          DB_ENGINE: postgresql
           POSTGRES_SERVER: localhost
           POSTGRES_PORT: 5432
           POSTGRES_DB: sentinel_db

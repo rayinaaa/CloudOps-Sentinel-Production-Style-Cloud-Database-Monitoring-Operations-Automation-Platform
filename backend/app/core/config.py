@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     """Production configuration schema for CloudOps Sentinel."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
@@ -37,6 +37,22 @@ class Settings(BaseSettings):
     )
 
     # 2. Sentinel Metadata Database
+    DB_ENGINE: str = Field(
+        default="oracle",
+        description="Primary database engine ('oracle' or 'postgresql')",
+    )
+    ORACLE_SERVER: str = Field(default="localhost", description="Oracle host")
+    ORACLE_PORT: int = Field(default=1521, description="Oracle TNS port")
+    ORACLE_SERVICE: str = Field(
+        default="FREEPDB1", description="Oracle Pluggable Database Service Name"
+    )
+    ORACLE_USER: str = Field(
+        default="sentinel_admin", description="Oracle user / schema"
+    )
+    ORACLE_PASSWORD: str = Field(
+        default="sentinel_secret_dev_pass", description="Oracle password"
+    )
+
     POSTGRES_SERVER: str = Field(default="localhost", description="PostgreSQL host")
     POSTGRES_PORT: int = Field(default=5434, description="PostgreSQL port")
     POSTGRES_DB: str = Field(default="sentinel_db", description="Database name")
@@ -60,6 +76,13 @@ class Settings(BaseSettings):
     )
 
     # 3. Monitored Target Database Defaults
+    TARGET_DB_ENGINE: str = "oracle"
+    TARGET_ORACLE_SERVER: str = "localhost"
+    TARGET_ORACLE_PORT: int = 1521
+    TARGET_ORACLE_SERVICE: str = "FREEPDB1"
+    TARGET_ORACLE_USER: str = "monitor_agent"
+    TARGET_ORACLE_PASSWORD: str = "CHANGE_ME_TARGET_SECURE_PASSWORD"
+
     TARGET_POSTGRES_SERVER: str = "localhost"
     TARGET_POSTGRES_PORT: int = 5433
     TARGET_POSTGRES_DB: str = "ecommerce_production"
@@ -98,9 +121,12 @@ class Settings(BaseSettings):
     def validate_production_credentials(self) -> "Settings":
         """Guards against using unrotated development passwords in production."""
         if self.ENVIRONMENT.lower() == "production":
-            if self.POSTGRES_PASSWORD == "sentinel_secret_dev_pass":
+            if (
+                self.POSTGRES_PASSWORD == "sentinel_secret_dev_pass"
+                or self.ORACLE_PASSWORD == "sentinel_secret_dev_pass"
+            ):
                 raise ValueError(
-                    "CRITICAL SECURITY VIOLATION: Default POSTGRES_PASSWORD cannot be used in production environment."
+                    "CRITICAL SECURITY VIOLATION: Default database password cannot be used in production environment."
                 )
             if "change-in-production" in self.SECRET_KEY.lower():
                 raise ValueError(
@@ -111,9 +137,14 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[misc]
     @property
     def async_database_url(self) -> str:
-        """Returns the asyncpg connection string for FastAPI async operations."""
+        """Returns the async connection string for FastAPI async operations."""
         if self.DATABASE_URL:
             return self.DATABASE_URL
+        if self.DB_ENGINE.lower() == "oracle":
+            return (
+                f"oracle+oracledb_async://{self.ORACLE_USER}:{self.ORACLE_PASSWORD}"
+                f"@{self.ORACLE_SERVER}:{self.ORACLE_PORT}/?service_name={self.ORACLE_SERVICE}"
+            )
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
@@ -122,9 +153,14 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[misc]
     @property
     def sync_database_url(self) -> str:
-        """Returns standard psycopg2 connection string for Alembic migrations."""
+        """Returns standard synchronous connection string for migrations."""
         if self.SYNC_DATABASE_URL:
             return self.SYNC_DATABASE_URL
+        if self.DB_ENGINE.lower() == "oracle":
+            return (
+                f"oracle+oracledb://{self.ORACLE_USER}:{self.ORACLE_PASSWORD}"
+                f"@{self.ORACLE_SERVER}:{self.ORACLE_PORT}/?service_name={self.ORACLE_SERVICE}"
+            )
         return (
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"

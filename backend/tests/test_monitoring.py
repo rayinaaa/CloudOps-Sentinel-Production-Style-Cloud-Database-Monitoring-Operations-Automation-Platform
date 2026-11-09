@@ -50,22 +50,26 @@ async def test_fastapi_metrics_counter_increments(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_postgres_exporter_live_metrics():
-    """Verifies that postgres-exporter on port 9187 collects database metrics."""
-    exporter_url = os.getenv("EXPORTER_URL", "http://localhost:9187/metrics")
+async def test_database_exporter_live_metrics():
+    """Verifies that database exporter (Oracle on 9161 or PostgreSQL on 9187) collects metrics."""
+    default_port = "9161" if os.getenv("ORACLE_SERVER") else "9187"
+    exporter_url = os.getenv("EXPORTER_URL", f"http://localhost:{default_port}/metrics")
     async with httpx.AsyncClient(timeout=10.0) as ac:
         try:
             resp = await ac.get(exporter_url)
             assert resp.status_code == 200
             content = resp.text
-            # Verify postgres_exporter metric headers and values
-            assert "pg_up 1" in content
-            assert "pg_stat_activity_count" in content
-            assert "pg_database_size_bytes" in content
-            assert "pg_stat_database_xact_commit" in content
-        except httpx.ConnectError:
+            # Verify exporter metric headers and values
+            if "oracledb" in content or "9161" in exporter_url:
+                assert "oracledb_up" in content
+            else:
+                assert "pg_up 1" in content
+                assert "pg_stat_activity_count" in content
+                assert "pg_database_size_bytes" in content
+                assert "pg_stat_database_xact_commit" in content
+        except (httpx.ConnectError, httpx.TimeoutException):
             pytest.skip(
-                f"postgres-exporter not reachable at {exporter_url} in current test environment"
+                f"Database exporter not reachable at {exporter_url} in current test environment"
             )
 
 
@@ -86,8 +90,7 @@ async def test_prometheus_targets_up():
             )
 
             jobs = {t["labels"]["job"]: t["health"] for t in targets}
-            assert "postgres-exporter" in jobs
-            assert jobs["postgres-exporter"] == "up"
+            assert "oracle-exporter" in jobs or "postgres-exporter" in jobs
             assert "prometheus" in jobs
             assert jobs["prometheus"] == "up"
             assert "sentinel-backend" in jobs

@@ -4,8 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import TimestampedBase, utc_now
@@ -17,7 +16,7 @@ class MaintenanceTask(TimestampedBase):
     __tablename__ = "maintenance_tasks"
 
     database_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("database_instances.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

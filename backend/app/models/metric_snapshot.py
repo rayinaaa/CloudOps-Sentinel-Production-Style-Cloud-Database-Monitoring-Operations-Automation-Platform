@@ -3,8 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Index, Integer
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Index, Integer, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import TimestampedBase, utc_now
@@ -16,7 +15,7 @@ class MetricSnapshot(TimestampedBase):
     __tablename__ = "metric_snapshots"
 
     database_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("database_instances.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

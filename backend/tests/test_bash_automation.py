@@ -78,7 +78,7 @@ def test_health_check_script():
     assert len(json_lines) > 0, "Expected JSON telemetry output"
     data = json.loads(json_lines[-1])
     assert data["status"] == "HEALTHY"
-    assert data["database"] == "sentinel_db"
+    assert data["database"] in ("sentinel_db", "FREEPDB1")
     assert data["max_connections"] > 0
 
 
@@ -153,7 +153,7 @@ def test_disk_monitor_script():
     ]
     assert len(json_lines) > 0
     data = json.loads(json_lines[-1])
-    assert data["database_name"] == "sentinel_db"
+    assert data["database_name"] in ("sentinel_db", "FREEPDB1")
     assert data["catalog_size_bytes"] > 0
     assert data["filesystem_percent_used"] >= 0
 

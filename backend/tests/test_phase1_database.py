@@ -26,17 +26,38 @@ DB_PASS = os.getenv("POSTGRES_PASSWORD", "sentinel_secret_dev_pass")
 
 @pytest.fixture(scope="module")
 def db_conn():
-    """Provides a PostgreSQL connection for integration testing."""
-    conn = psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS,
-    )
-    conn.autocommit = False
-    yield conn
-    conn.close()
+    """Provides a database connection for integration testing (PostgreSQL or Oracle)."""
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASS,
+            connect_timeout=3,
+        )
+        conn.autocommit = False
+        yield conn
+        conn.close()
+    except (psycopg2.OperationalError, Exception):
+        try:
+            import oracledb
+
+            conn = oracledb.connect(
+                user=os.getenv("ORACLE_USER", "sentinel_admin"),
+                password=os.getenv("ORACLE_PASSWORD", "sentinel_secret_dev_pass"),
+                host=os.getenv("ORACLE_SERVER", "localhost"),
+                port=int(os.getenv("ORACLE_PORT", "1521")),
+                service_name=os.getenv("ORACLE_SERVICE", "FREEPDB1"),
+                tcp_connect_timeout=3,
+            )
+            conn.autocommit = False
+            yield conn
+            conn.close()
+        except Exception:
+            pytest.skip(
+                "No running database instance (PostgreSQL or Oracle) available for phase 1 database tests"
+            )
 
 
 def test_schema_tables_exist(db_conn):

@@ -21,15 +21,15 @@ scrape_configs:
           environment: "production"
           service: "cloudops-sentinel-api"
 
-  # 2. PostgreSQL Exporter Telemetry
-  - job_name: "postgres-exporter"
+  # 2. Database Exporter Telemetry (Oracle / Multi-Engine)
+  - job_name: "oracle-exporter"
     metrics_path: "/metrics"
     scrape_interval: 10s
     static_configs:
-      - targets: ["postgres-exporter:9187"]
+      - targets: ["oracle-exporter:9161"]
         labels:
           environment: "production"
-          service: "sentinel-postgres-exporter"
+          service: "sentinel-oracle-exporter"
 
   # 3. Prometheus Self-Monitoring
   - job_name: "prometheus"

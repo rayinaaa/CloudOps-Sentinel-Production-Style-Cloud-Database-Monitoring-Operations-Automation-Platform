@@ -24,13 +24,24 @@ from app.core.logging import logger, setup_logging
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manages application lifecycle: logging initialization, telemetry, and graceful shutdown."""
     setup_logging()
+    active_host = (
+        settings.ORACLE_SERVER
+        if settings.DB_ENGINE == "oracle"
+        else settings.POSTGRES_SERVER
+    )
+    active_port = (
+        settings.ORACLE_PORT
+        if settings.DB_ENGINE == "oracle"
+        else settings.POSTGRES_PORT
+    )
     logger.info(
         "Initializing CloudOps Sentinel Platform",
         environment=settings.ENVIRONMENT,
         version=settings.APP_VERSION,
         api_prefix=settings.API_V1_PREFIX,
-        db_host=settings.POSTGRES_SERVER,
-        db_port=settings.POSTGRES_PORT,
+        db_engine=settings.DB_ENGINE,
+        db_host=active_host,
+        db_port=active_port,
     )
 
     yield

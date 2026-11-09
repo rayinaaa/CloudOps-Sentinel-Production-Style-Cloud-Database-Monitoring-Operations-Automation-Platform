@@ -5,11 +5,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import TimestampedBase
+from app.models.base import JSONType, TimestampedBase
 
 
 class IncidentSeverity(str, Enum):
@@ -72,7 +71,7 @@ class Incident(TimestampedBase):
     )
     target_instance: Mapped[str] = mapped_column(
         String(128),
-        default="primary-postgres",
+        default="primary-oracle",
         nullable=False,
     )
     fingerprint: Mapped[Optional[str]] = mapped_column(
@@ -90,7 +89,7 @@ class Incident(TimestampedBase):
     resolved_by: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     resolution_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[Dict[str, Any]] = mapped_column(
-        JSONB,
+        JSONType,
         default=dict,
         nullable=False,
     )
@@ -144,7 +143,7 @@ class IncidentHistory(TimestampedBase):
     __tablename__ = "incident_history"
 
     incident_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("incidents.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

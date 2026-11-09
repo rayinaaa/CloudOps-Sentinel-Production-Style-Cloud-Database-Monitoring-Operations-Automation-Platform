@@ -1,72 +1,63 @@
 services:
   # ============================================================================
-  # 1. SENTINEL METADATA DATABASE
+  # 1. SENTINEL METADATA DATABASE (Oracle Database 23ai Free)
   # Stores targets, metric timeseries, alerts, audit trails, and execution logs
   # ============================================================================
   sentinel-db:
-    image: postgres:16-alpine
-    container_name: sentinel-postgres
+    image: gvenzl/oracle-free:23-slim-faststart
+    container_name: sentinel-oracle
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sentinel_db}
-      POSTGRES_USER: ${POSTGRES_USER:-sentinel_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentinel_secret_dev_pass}
-      PGDATA: /var/lib/postgresql/data/pgdata
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-sentinel_secret_dev_pass}
+      APP_USER: ${ORACLE_USER:-sentinel_admin}
+      APP_USER_PASSWORD: ${ORACLE_PASSWORD:-sentinel_secret_dev_pass}
+      ORACLE_DATABASE: FREEPDB1
     ports:
-      - "${POSTGRES_PORT:-5434}:5432"
+      - "${ORACLE_PORT:-1521}:1521"
     volumes:
-      - sentinel_pgdata:/var/lib/postgresql/data
-      - ./scripts/phase1_saas_schema.sql:/docker-entrypoint-initdb.d/02_saas_schema.sql:ro
+      - sentinel_oradata:/opt/oracle/oradata
+      - ./scripts/phase1_oracle_schema.sql:/container-entrypoint-initdb.d/01_saas_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sentinel_admin} -d ${POSTGRES_DB:-sentinel_db}"]
+      test: ["CMD-SHELL", "healthcheck.sh"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 15s
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 1024M
+          cpus: "2.0"
+          memory: 2048M
     networks:
       - sentinel-net
 
   # ============================================================================
-  # 2. MONITORED TARGET DATABASE (Simulates Production RDS / EC2 Database)
-  # Preloaded with pg_stat_statements for slow query & lock monitoring
+  # 2. MONITORED TARGET DATABASE (Simulates Production Oracle Database)
   # ============================================================================
   monitored-db:
-    image: postgres:16-alpine
-    container_name: monitored-postgres
+    image: gvenzl/oracle-free:23-slim-faststart
+    container_name: monitored-oracle
     restart: unless-stopped
-    command: >
-      postgres
-      -c shared_preload_libraries=pg_stat_statements
-      -c pg_stat_statements.track=all
-      -c pg_stat_statements.max=10000
-      -c track_activity_query_size=2048
-      -c log_min_duration_statement=500
     environment:
-      POSTGRES_DB: ${TARGET_POSTGRES_DB:-ecommerce_production}
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${TARGET_POSTGRES_PASSWORD:-target_secret_dev_pass}
-      PGDATA: /var/lib/postgresql/data/pgdata
+      ORACLE_PASSWORD: ${TARGET_ORACLE_PASSWORD:-target_secret_dev_pass}
+      APP_USER: ${TARGET_ORACLE_USER:-monitor_agent}
+      APP_USER_PASSWORD: ${TARGET_ORACLE_PASSWORD:-target_secret_dev_pass}
+      ORACLE_DATABASE: FREEPDB1
     ports:
-      - "${TARGET_POSTGRES_PORT:-5433}:5432"
+      - "${TARGET_ORACLE_PORT:-1522}:1521"
     volumes:
-      - monitored_pgdata:/var/lib/postgresql/data
-      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - monitored_oradata:/opt/oracle/oradata
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ${TARGET_POSTGRES_DB:-ecommerce_production}"]
+      test: ["CMD-SHELL", "healthcheck.sh"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 15s
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 1024M
+          cpus: "2.0"
+          memory: 2048M
     networks:
       - sentinel-net
 
@@ -88,12 +79,17 @@ services:
       - path: .env
         required: false
     environment:
-      - POSTGRES_SERVER=sentinel-db
-      - POSTGRES_PORT=5432
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-sentinel_admin}:${POSTGRES_PASSWORD:-sentinel_secret_dev_pass}@sentinel-db:5432/${POSTGRES_DB:-sentinel_db}
-      - SYNC_DATABASE_URL=postgresql://${POSTGRES_USER:-sentinel_admin}:${POSTGRES_PASSWORD:-sentinel_secret_dev_pass}@sentinel-db:5432/${POSTGRES_DB:-sentinel_db}
-      - TARGET_POSTGRES_SERVER=monitored-db
-      - TARGET_POSTGRES_PORT=5432
+      - DB_ENGINE=oracle
+      - ORACLE_SERVER=sentinel-db
+      - ORACLE_PORT=1521
+      - ORACLE_SERVICE=FREEPDB1
+      - ORACLE_USER=${ORACLE_USER:-sentinel_admin}
+      - ORACLE_PASSWORD=${ORACLE_PASSWORD:-sentinel_secret_dev_pass}
+      - DATABASE_URL=oracle+oracledb_async://${ORACLE_USER:-sentinel_admin}:${ORACLE_PASSWORD:-sentinel_secret_dev_pass}@sentinel-db:1521/?service_name=FREEPDB1
+      - SYNC_DATABASE_URL=oracle+oracledb://${ORACLE_USER:-sentinel_admin}:${ORACLE_PASSWORD:-sentinel_secret_dev_pass}@sentinel-db:1521/?service_name=FREEPDB1
+      - TARGET_ORACLE_SERVER=monitored-db
+      - TARGET_ORACLE_PORT=1521
+      - TARGET_ORACLE_SERVICE=FREEPDB1
     ports:
       - "8000:8000"
     healthcheck:
@@ -146,16 +142,16 @@ services:
       - sentinel-net
 
   # ============================================================================
-  # 5. POSTGRES EXPORTER (Prometheus Metrics Exporter for Database)
+  # 5. ORACLE EXPORTER (Prometheus Metrics Exporter for Oracle Database)
   # ============================================================================
-  postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.15.0
-    container_name: sentinel-postgres-exporter
+  oracle-exporter:
+    image: iamseth/oracledb_exporter:latest
+    container_name: sentinel-oracle-exporter
     restart: unless-stopped
     ports:
-      - "9187:9187"
+      - "9161:9161"
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-sentinel_admin}:${POSTGRES_PASSWORD:-sentinel_secret_dev_pass}@sentinel-db:5432/${POSTGRES_DB:-sentinel_db}?sslmode=disable"
+      DATA_SOURCE_NAME: "oracle://${ORACLE_USER:-sentinel_admin}:${ORACLE_PASSWORD:-sentinel_secret_dev_pass}@sentinel-db:1521/FREEPDB1"
     depends_on:
       sentinel-db:
         condition: service_healthy
@@ -248,9 +244,9 @@ networks:
     driver: bridge
 
 volumes:
-  sentinel_pgdata:
+  sentinel_oradata:
     driver: local
-  monitored_pgdata:
+  monitored_oradata:
     driver: local
   prometheus_data:
     driver: local

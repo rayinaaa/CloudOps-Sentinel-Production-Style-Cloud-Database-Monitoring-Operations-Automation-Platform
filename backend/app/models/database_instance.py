@@ -4,14 +4,13 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import Boolean, DateTime, Integer, String
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import TimestampedBase
+from app.models.base import JSONType, TimestampedBase
 
 
 class DatabaseInstance(TimestampedBase):
-    """Monitored database target (AWS RDS, Aurora, EC2 Postgres, or Containerized)."""
+    """Monitored database target (Oracle Database 23ai, AWS RDS Oracle, or Containerized)."""
 
     __tablename__ = "database_instances"
 
@@ -20,22 +19,22 @@ class DatabaseInstance(TimestampedBase):
         unique=True,
         nullable=False,
         index=True,
-        doc="Human-readable identifier e.g. prod-us-east-1-orders",
+        doc="Human-readable identifier e.g. prod-oracle-freepdb1",
     )
     engine: Mapped[str] = mapped_column(
         String(32),
-        default="postgresql",
+        default="oracle",
         nullable=False,
-        doc="Database engine (postgresql, aurora_postgresql)",
+        doc="Database engine (oracle, oracle_23ai, postgresql)",
     )
     host: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
-        doc="Hostname or RDS endpoint",
+        doc="Hostname or Oracle TNS endpoint",
     )
     port: Mapped[int] = mapped_column(
         Integer,
-        default=5432,
+        default=1521,
         nullable=False,
         doc="Database network port",
     )
@@ -81,7 +80,7 @@ class DatabaseInstance(TimestampedBase):
         doc="Timestamp of most recent health probe",
     )
     tags: Mapped[Optional[dict]] = mapped_column(
-        JSONB,
+        JSONType,
         nullable=True,
         doc="Cloud tags e.g. {'aws_region': 'us-east-1', 'owner': 'cloudops'}",
     )

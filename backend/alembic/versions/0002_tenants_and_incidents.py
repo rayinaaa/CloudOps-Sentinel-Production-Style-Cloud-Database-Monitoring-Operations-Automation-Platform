@@ -20,8 +20,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     conn = op.get_bind()
-    inspector = sa.inspect(conn)
-    existing_tables = inspector.get_table_names()
+    try:
+        inspector = sa.inspect(conn)
+        existing_tables = inspector.get_table_names()
+    except Exception:
+        existing_tables = []
 
     # 1. Tenants table
     if "tenants" not in existing_tables:
@@ -128,48 +131,46 @@ def upgrade() -> None:
         op.create_index("idx_app_users_email", "app_users", ["email"])
         op.create_index("idx_app_users_tenant_role", "app_users", ["tenant_id", "role"])
 
-    # 3. Seed data if tenants table is empty
-    tenant_count = conn.execute(sa.text("SELECT count(*) FROM tenants")).scalar()
-    if tenant_count == 0:
-        conn.execute(
-            sa.text("""
-            INSERT INTO tenants (id, name, slug, plan, status, max_users, max_storage_bytes, created_at)
-            VALUES
-                ('a0000000-0000-0000-0000-000000000001', 'Acme Cloud Technologies', 'acme-cloud', 'ENTERPRISE', 'ACTIVE', 100, 107374182400, NOW() - INTERVAL '120 days'),
-                ('a0000000-0000-0000-0000-000000000002', 'Nova FinTech Group', 'nova-fintech', 'ENTERPRISE', 'ACTIVE', 50, 53687091200, NOW() - INTERVAL '90 days'),
-                ('a0000000-0000-0000-0000-000000000003', 'Quantum Retail Solutions', 'quantum-retail', 'PRO', 'ACTIVE', 25, 21474836480, NOW() - INTERVAL '60 days'),
-                ('a0000000-0000-0000-0000-000000000004', 'Hyperion Health Labs', 'hyperion-health', 'PRO', 'SUSPENDED', 20, 21474836480, NOW() - INTERVAL '45 days'),
-                ('a0000000-0000-0000-0000-000000000005', 'Apex Robotics', 'apex-robotics', 'STARTER', 'ACTIVE', 10, 5368709120, NOW() - INTERVAL '30 days'),
-                ('a0000000-0000-0000-0000-000000000006', 'Cobalt Logistics', 'cobalt-logistics', 'STARTER', 'SUSPENDED', 10, 5368709120, NOW() - INTERVAL '20 days'),
-                ('a0000000-0000-0000-0000-000000000007', 'DevPulse Analytics', 'devpulse', 'FREE', 'ACTIVE', 5, 1073741824, NOW() - INTERVAL '10 days'),
-                ('a0000000-0000-0000-0000-000000000008', 'ZeroLag Gaming Studios', 'zerolag', 'FREE', 'PENDING', 5, 1073741824, NOW() - INTERVAL '2 days')
-            ON CONFLICT (slug) DO NOTHING;
-        """)
-        )
-        conn.execute(
-            sa.text("""
-            INSERT INTO app_users (tenant_id, email, full_name, role, is_active, last_login_at, created_at)
-            VALUES
-                ('a0000000-0000-0000-0000-000000000001', 'sarah.connor@acmecloud.io', 'Sarah Connor', 'OWNER', TRUE, NOW() - INTERVAL '2 hours', NOW() - INTERVAL '120 days'),
-                ('a0000000-0000-0000-0000-000000000001', 'john.doe@acmecloud.io', 'John Doe', 'ADMIN', TRUE, NOW() - INTERVAL '5 hours', NOW() - INTERVAL '115 days'),
-                ('a0000000-0000-0000-0000-000000000001', 'elena.rostova@acmecloud.io', 'Elena Rostova', 'MEMBER', TRUE, NOW() - INTERVAL '1 day', NOW() - INTERVAL '90 days'),
-                ('a0000000-0000-0000-0000-000000000001', 'marcus.vance@acmecloud.io', 'Marcus Vance', 'MEMBER', TRUE, NOW() - INTERVAL '3 days', NOW() - INTERVAL '60 days'),
-                ('a0000000-0000-0000-0000-000000000001', 'auditor@acmecloud.io', 'External Auditor', 'VIEWER', FALSE, NOW() - INTERVAL '30 days', NOW() - INTERVAL '40 days'),
-                ('a0000000-0000-0000-0000-000000000002', 'alex.chen@novafintech.com', 'Alex Chen', 'OWNER', TRUE, NOW() - INTERVAL '1 hour', NOW() - INTERVAL '90 days'),
-                ('a0000000-0000-0000-0000-000000000002', 'priya.sharma@novafintech.com', 'Priya Sharma', 'ADMIN', TRUE, NOW() - INTERVAL '4 hours', NOW() - INTERVAL '85 days'),
-                ('a0000000-0000-0000-0000-000000000002', 'david.kim@novafintech.com', 'David Kim', 'MEMBER', TRUE, NOW() - INTERVAL '8 hours', NOW() - INTERVAL '70 days'),
-                ('a0000000-0000-0000-0000-000000000003', 'rachel.green@quantumretail.com', 'Rachel Green', 'OWNER', TRUE, NOW() - INTERVAL '12 hours', NOW() - INTERVAL '60 days'),
-                ('a0000000-0000-0000-0000-000000000003', 'ross.geller@quantumretail.com', 'Ross Geller', 'MEMBER', TRUE, NOW() - INTERVAL '1 day', NOW() - INTERVAL '50 days'),
-                ('a0000000-0000-0000-0000-000000000004', 'dr.house@hyperionhealth.org', 'Gregory House', 'OWNER', FALSE, NOW() - INTERVAL '40 days', NOW() - INTERVAL '45 days'),
-                ('a0000000-0000-0000-0000-000000000004', 'dr.cameron@hyperionhealth.org', 'Allison Cameron', 'ADMIN', FALSE, NOW() - INTERVAL '42 days', NOW() - INTERVAL '44 days'),
-                ('a0000000-0000-0000-0000-000000000005', 'miles.dyson@apexrobotics.ai', 'Miles Dyson', 'OWNER', TRUE, NOW() - INTERVAL '30 minutes', NOW() - INTERVAL '30 days'),
-                ('a0000000-0000-0000-0000-000000000005', 't800.admin@apexrobotics.ai', 'Model 101', 'ADMIN', TRUE, NOW() - INTERVAL '10 minutes', NOW() - INTERVAL '28 days'),
-                ('a0000000-0000-0000-0000-000000000006', 'dispatch@cobaltlogistics.net', 'Dispatcher Dan', 'OWNER', FALSE, NOW() - INTERVAL '15 days', NOW() - INTERVAL '20 days'),
-                ('a0000000-0000-0000-0000-000000000007', 'dev.solo@devpulse.dev', 'Solo Developer', 'OWNER', TRUE, NOW() - INTERVAL '6 hours', NOW() - INTERVAL '10 days'),
-                ('a0000000-0000-0000-0000-000000000008', 'lead.streamer@zerolag.gg', 'Streamer Alpha', 'OWNER', TRUE, NULL, NOW() - INTERVAL '2 days')
-            ON CONFLICT (tenant_id, email) DO NOTHING;
-        """)
-        )
+    # 3. Seed data with conflict avoidance
+    op.execute(
+        sa.text("""
+        INSERT INTO tenants (id, name, slug, plan, status, max_users, max_storage_bytes, created_at)
+        VALUES
+            ('a0000000-0000-0000-0000-000000000001', 'Acme Cloud Technologies', 'acme-cloud', 'ENTERPRISE', 'ACTIVE', 100, 107374182400, NOW() - INTERVAL '120 days'),
+            ('a0000000-0000-0000-0000-000000000002', 'Nova FinTech Group', 'nova-fintech', 'ENTERPRISE', 'ACTIVE', 50, 53687091200, NOW() - INTERVAL '90 days'),
+            ('a0000000-0000-0000-0000-000000000003', 'Quantum Retail Solutions', 'quantum-retail', 'PRO', 'ACTIVE', 25, 21474836480, NOW() - INTERVAL '60 days'),
+            ('a0000000-0000-0000-0000-000000000004', 'Hyperion Health Labs', 'hyperion-health', 'PRO', 'SUSPENDED', 20, 21474836480, NOW() - INTERVAL '45 days'),
+            ('a0000000-0000-0000-0000-000000000005', 'Apex Robotics', 'apex-robotics', 'STARTER', 'ACTIVE', 10, 5368709120, NOW() - INTERVAL '30 days'),
+            ('a0000000-0000-0000-0000-000000000006', 'Cobalt Logistics', 'cobalt-logistics', 'STARTER', 'SUSPENDED', 10, 5368709120, NOW() - INTERVAL '20 days'),
+            ('a0000000-0000-0000-0000-000000000007', 'DevPulse Analytics', 'devpulse', 'FREE', 'ACTIVE', 5, 1073741824, NOW() - INTERVAL '10 days'),
+            ('a0000000-0000-0000-0000-000000000008', 'ZeroLag Gaming Studios', 'zerolag', 'FREE', 'PENDING', 5, 1073741824, NOW() - INTERVAL '2 days')
+        ON CONFLICT (slug) DO NOTHING;
+    """)
+    )
+    op.execute(
+        sa.text("""
+        INSERT INTO app_users (tenant_id, email, full_name, role, is_active, last_login_at, created_at)
+        VALUES
+            ('a0000000-0000-0000-0000-000000000001', 'sarah.connor@acmecloud.io', 'Sarah Connor', 'OWNER', TRUE, NOW() - INTERVAL '2 hours', NOW() - INTERVAL '120 days'),
+            ('a0000000-0000-0000-0000-000000000001', 'john.doe@acmecloud.io', 'John Doe', 'ADMIN', TRUE, NOW() - INTERVAL '5 hours', NOW() - INTERVAL '115 days'),
+            ('a0000000-0000-0000-0000-000000000001', 'elena.rostova@acmecloud.io', 'Elena Rostova', 'MEMBER', TRUE, NOW() - INTERVAL '1 day', NOW() - INTERVAL '90 days'),
+            ('a0000000-0000-0000-0000-000000000001', 'marcus.vance@acmecloud.io', 'Marcus Vance', 'MEMBER', TRUE, NOW() - INTERVAL '3 days', NOW() - INTERVAL '60 days'),
+            ('a0000000-0000-0000-0000-000000000001', 'auditor@acmecloud.io', 'External Auditor', 'VIEWER', FALSE, NOW() - INTERVAL '30 days', NOW() - INTERVAL '40 days'),
+            ('a0000000-0000-0000-0000-000000000002', 'alex.chen@novafintech.com', 'Alex Chen', 'OWNER', TRUE, NOW() - INTERVAL '1 hour', NOW() - INTERVAL '90 days'),
+            ('a0000000-0000-0000-0000-000000000002', 'priya.sharma@novafintech.com', 'Priya Sharma', 'ADMIN', TRUE, NOW() - INTERVAL '4 hours', NOW() - INTERVAL '85 days'),
+            ('a0000000-0000-0000-0000-000000000002', 'david.kim@novafintech.com', 'David Kim', 'MEMBER', TRUE, NOW() - INTERVAL '8 hours', NOW() - INTERVAL '70 days'),
+            ('a0000000-0000-0000-0000-000000000003', 'rachel.green@quantumretail.com', 'Rachel Green', 'OWNER', TRUE, NOW() - INTERVAL '12 hours', NOW() - INTERVAL '60 days'),
+            ('a0000000-0000-0000-0000-000000000003', 'ross.geller@quantumretail.com', 'Ross Geller', 'MEMBER', TRUE, NOW() - INTERVAL '1 day', NOW() - INTERVAL '50 days'),
+            ('a0000000-0000-0000-0000-000000000004', 'dr.house@hyperionhealth.org', 'Gregory House', 'OWNER', FALSE, NOW() - INTERVAL '40 days', NOW() - INTERVAL '45 days'),
+            ('a0000000-0000-0000-0000-000000000004', 'dr.cameron@hyperionhealth.org', 'Allison Cameron', 'ADMIN', FALSE, NOW() - INTERVAL '42 days', NOW() - INTERVAL '44 days'),
+            ('a0000000-0000-0000-0000-000000000005', 'miles.dyson@apexrobotics.ai', 'Miles Dyson', 'OWNER', TRUE, NOW() - INTERVAL '30 minutes', NOW() - INTERVAL '30 days'),
+            ('a0000000-0000-0000-0000-000000000005', 't800.admin@apexrobotics.ai', 'Model 101', 'ADMIN', TRUE, NOW() - INTERVAL '10 minutes', NOW() - INTERVAL '28 days'),
+            ('a0000000-0000-0000-0000-000000000006', 'dispatch@cobaltlogistics.net', 'Dispatcher Dan', 'OWNER', FALSE, NOW() - INTERVAL '15 days', NOW() - INTERVAL '20 days'),
+            ('a0000000-0000-0000-0000-000000000007', 'dev.solo@devpulse.dev', 'Solo Developer', 'OWNER', TRUE, NOW() - INTERVAL '6 hours', NOW() - INTERVAL '10 days'),
+            ('a0000000-0000-0000-0000-000000000008', 'lead.streamer@zerolag.gg', 'Streamer Alpha', 'OWNER', TRUE, NULL, NOW() - INTERVAL '2 days')
+        ON CONFLICT (tenant_id, email) DO NOTHING;
+    """)
+    )
 
     # 4. Incidents table
     if "incidents" not in existing_tables:
