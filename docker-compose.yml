@@ -11,18 +11,17 @@ services:
       ORACLE_PASSWORD: ${ORACLE_PASSWORD:-sentinel_secret_dev_pass}
       APP_USER: ${ORACLE_USER:-sentinel_admin}
       APP_USER_PASSWORD: ${ORACLE_PASSWORD:-sentinel_secret_dev_pass}
-      ORACLE_DATABASE: FREEPDB1
     ports:
       - "${ORACLE_PORT:-1521}:1521"
     volumes:
       - sentinel_oradata:/opt/oracle/oradata
       - ./scripts/phase1_oracle_schema.sql:/container-entrypoint-initdb.d/01_saas_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "healthcheck.sh"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
+      test: ["CMD-SHELL", "/opt/oracle/healthcheck.sh FREEPDB1 true"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -33,8 +32,10 @@ services:
 
   # ============================================================================
   # 2. MONITORED TARGET DATABASE (Simulates Production Oracle Database)
+  # Activated with: docker compose --profile extended-cluster up -d
   # ============================================================================
   monitored-db:
+    profiles: ["extended-cluster"]
     image: gvenzl/oracle-free:23-slim-faststart
     container_name: monitored-oracle
     restart: unless-stopped
@@ -42,17 +43,16 @@ services:
       ORACLE_PASSWORD: ${TARGET_ORACLE_PASSWORD:-target_secret_dev_pass}
       APP_USER: ${TARGET_ORACLE_USER:-monitor_agent}
       APP_USER_PASSWORD: ${TARGET_ORACLE_PASSWORD:-target_secret_dev_pass}
-      ORACLE_DATABASE: FREEPDB1
     ports:
       - "${TARGET_ORACLE_PORT:-1522}:1521"
     volumes:
       - monitored_oradata:/opt/oracle/oradata
     healthcheck:
-      test: ["CMD-SHELL", "healthcheck.sh"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
+      test: ["CMD-SHELL", "/opt/oracle/healthcheck.sh FREEPDB1 true"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -73,8 +73,6 @@ services:
     depends_on:
       sentinel-db:
         condition: service_healthy
-      monitored-db:
-        condition: service_healthy
     env_file:
       - path: .env
         required: false
@@ -87,7 +85,7 @@ services:
       - ORACLE_PASSWORD=${ORACLE_PASSWORD:-sentinel_secret_dev_pass}
       - DATABASE_URL=oracle+oracledb_async://${ORACLE_USER:-sentinel_admin}:${ORACLE_PASSWORD:-sentinel_secret_dev_pass}@sentinel-db:1521/?service_name=FREEPDB1
       - SYNC_DATABASE_URL=oracle+oracledb://${ORACLE_USER:-sentinel_admin}:${ORACLE_PASSWORD:-sentinel_secret_dev_pass}@sentinel-db:1521/?service_name=FREEPDB1
-      - TARGET_ORACLE_SERVER=monitored-db
+      - TARGET_ORACLE_SERVER=sentinel-db
       - TARGET_ORACLE_PORT=1521
       - TARGET_ORACLE_SERVICE=FREEPDB1
     ports:
